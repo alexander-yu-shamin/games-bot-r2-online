@@ -50,6 +50,7 @@ namespace R2Bot
     {
         public const string DefaultPath = ".\\";
         private const string FilenameFormat = "{0}_x={1}_y={2}.png";
+        private const string CursorFilenameFormat = "{0}_{1}_x={2}_y={3}.png";
 
 
         [StructLayout(LayoutKind.Sequential)]
@@ -162,7 +163,7 @@ namespace R2Bot
             return result;
         }
 
-        private Rectangle CursorRect { get; } = new Rectangle(6, 6, 5, 5);
+        private static Rectangle CursorRect { get; } = new Rectangle(6, 6, 5, 5);
         private CursorType GetCursorType(Image<Gray, byte> image, Point pointer)
         {
             var rect = new Rectangle(pointer.X + CursorRect.X, pointer.Y + CursorRect.Y, CursorRect.Width,
@@ -373,8 +374,14 @@ namespace R2Bot
         public static void SaveCursor(Bitmap bitmap, Point point, string filename)
         {
             ConvertToImage(bitmap, out var bgra, out var gray);
-            bgra.Save(string.Format(FilenameFormat, filename));
-            gray.Save(string.Format(FilenameFormat, filename));
+
+            var rect = new Rectangle(point.X + CursorRect.X, point.Y + CursorRect.Y, CursorRect.Width,
+                CursorRect.Height);
+            var cursorAreaBgra = bgra.GetSubRect(rect);
+            var cursorAreaGray = gray.GetSubRect(rect);
+
+            cursorAreaBgra.Save(string.Format(CursorFilenameFormat, filename, "bgra", point.X, point.Y));
+            cursorAreaGray.Save(string.Format(CursorFilenameFormat, filename, "gray", point.X, point.Y));
         }
 
         public bool IsEqual(double one, double two, double epsilon)
