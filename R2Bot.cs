@@ -236,6 +236,7 @@ namespace R2Bot
 
             KeyboardHook.RegisterHotKey(global::R2Bot.ModifierKeys.Alt, Keys.F12);
             KeyboardHook.RegisterHotKey(global::R2Bot.ModifierKeys.Alt, Keys.F11);
+            KeyboardHook.RegisterHotKey(global::R2Bot.ModifierKeys.Alt, Keys.F10);
         }
 
         void KeyboardHook_KeyPressed(object sender, KeyPressedEventArgs e)
@@ -253,6 +254,11 @@ namespace R2Bot
                 if (e.Key == Keys.F11)
                 {
                     Testing();
+                }
+
+                if (e.Key == Keys.F10)
+                {
+                    SaveImage();
                 }
             }
         }
@@ -292,55 +298,29 @@ namespace R2Bot
             }
         }
 
+        private void SaveImage()
+        {
+            try
+            {
+                var info = ImageAnalyzer.CaptureScreen();
+                var filename = DateTime.Now.ToString("yy-MM-dd-hh-mm");
+                ImageAnalyzer.SaveImage(info.Item1, info.Item2, filename);
+                Console.WriteLine($"Saved capture screen image to {filename}");
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine($"Cannot save file. Exception = {exception.Message}");
+            }
+        }
+
         private void Testing()
         {
             Console.WriteLine($"Testing...");
             ImageAnalyzer imgAnalyzer = new ImageAnalyzer();
-            var info = imgAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_02 19_54_43.jpg");
-            var img =  info.Item1.ToImage<Bgra, Byte>();
-            CvInvoke.NamedWindow("bgra");
-            CvInvoke.Imshow("bgra", img);
-            var gray = new Image<Gray, byte>(img.Size);
-            CvInvoke.CvtColor(img, gray, ColorConversion.Bgra2Gray);
-
-            CvInvoke.NamedWindow("gray");
-            CvInvoke.Imshow("gray", gray);
-
-            //var rect = gray.GetSubRect(new Rectangle(856, 929, 208, 43)); // окно моба
-            var rect = gray.GetSubRect(new Rectangle(858, 940, 206, 20));
-
-            CvInvoke.NamedWindow("rect");
-            CvInvoke.Imshow("rect", rect);
-
-            var threshold = rect.ThresholdBinary(new Gray(128), new Gray(255));
-
-            CvInvoke.NamedWindow("threshold");
-            CvInvoke.Imshow("threshold", threshold);
-
-
-            //System.IO.Directory.CreateDirectory("./tessdata");
-            //imgAnalyzer.TesseractDownloadLangFile("./tessdata", "rus");
-
-            var tesseract = new Tesseract("./tessdata/", "rus", OcrEngineMode.Default);
-            tesseract.SetImage(threshold);
-            var result = tesseract.Recognize();
-            Console.WriteLine($"tesseract result {result}");
-
-            Console.WriteLine(tesseract.GetHOCRText());
-            Console.WriteLine(tesseract.GetUTF8Text());
-            Console.WriteLine(tesseract.GetTSVText());
-            Console.WriteLine(tesseract.GetUNLVText());
-
-
-
-
-
-
-
-
-
-
-
+            //var info = imgAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_02 19_54_43.jpg");
+            //var info = imgAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_05 19_51_53.jpg");
+            var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_03 23_49_32.jpg");
+            imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Health | ImageProcessing.Mana);
         }
     }
 }

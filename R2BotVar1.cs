@@ -177,20 +177,20 @@ namespace R2Bot
 
             do
             {
-                var (image, x, y) = ImageAnalyzer.CaptureScreen();
-                var popupColor = Color.FromArgb(255, 165, 138, 82);
-                var color1 = image.GetPixel(960, 929);
-                var color2 = image.GetPixel(960, 930);
-                //image.Save("D:\\popup.png", ImageFormat.Png);
-                if(color1  == color2 && color1 == popupColor)
-                {
-                    Thread.Sleep(250);
-                }
-                else
-                {
-                    popupOpen = false;
-                    CurrentState = State.Take;
-                }
+                ////var (image, x, y) = ImageAnalyzer.CaptureScreen();
+                //var popupColor = Color.FromArgb(255, 165, 138, 82);
+                //var color1 = image.GetPixel(960, 929);
+                //var color2 = image.GetPixel(960, 930);
+                ////image.Save("D:\\popup.png", ImageFormat.Png);
+                //if(color1  == color2 && color1 == popupColor)
+                //{
+                //    Thread.Sleep(250);
+                //}
+                //else
+                //{
+                //    popupOpen = false;
+                //    CurrentState = State.Take;
+                //}
             }
             while (popupOpen);
         }
@@ -210,10 +210,10 @@ namespace R2Bot
         /// 
         /// </summary>
         /// <returns> false = not found, true = found</returns>
-        private bool FindMonster((Bitmap image, int x, int y) input)
+        private bool FindMonster((Bitmap image, Point point) input)
         {
-            var cursor_x = input.x + 7;
-            var cursor_y = input.y + 7;
+            var cursor_x = input.point.X + 7;
+            var cursor_y = input.point.Y + 7;
             if(input.image == null)
             {
                 CurrentState = State.Exit;
