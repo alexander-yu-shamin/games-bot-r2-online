@@ -123,7 +123,7 @@ namespace R2Bot
 
                 if (task.HasFlag(ImageProcessing.Cursor))
                 {
-
+                   result.Cursor = GetCursorType(gray, pointer);
                 }
 
                 if (task.HasFlag(ImageProcessing.Health))
@@ -160,6 +160,25 @@ namespace R2Bot
             }
 
             return result;
+        }
+
+        private Rectangle CursorRect { get; } = new Rectangle(6, 6, 5, 5);
+        private CursorType GetCursorType(Image<Gray, byte> image, Point pointer)
+        {
+            var rect = new Rectangle(pointer.X + CursorRect.X, pointer.Y + CursorRect.Y, CursorRect.Width,
+                CursorRect.Height);
+            var cursorArea = image.GetSubRect(rect);
+
+#if IMGUI_DEBUG_WINDOW
+            CvInvoke.NamedWindow("cursor area");
+            CvInvoke.Imshow("cursor area", cursorArea);
+#endif
+
+
+
+
+
+            return CursorType.None;
         }
 
         private bool IsAttackWindowOpen(Image<Gray, byte> image)
@@ -269,7 +288,7 @@ namespace R2Bot
             return result;
         }
 
-        private void ConvertToImage(Bitmap bitmap, out Image<Bgra, byte> bgra, out Image<Gray, byte> gray)
+        private static void ConvertToImage(Bitmap bitmap, out Image<Bgra, byte> bgra, out Image<Gray, byte> gray)
         {
             bgra = bitmap.ToImage<Bgra, byte>();
 #if IMGUI_DEBUG_WINDOW
@@ -349,6 +368,13 @@ namespace R2Bot
             }
 
             return (result, pointer);
+        }
+
+        public static void SaveCursor(Bitmap bitmap, Point point, string filename)
+        {
+            ConvertToImage(bitmap, out var bgra, out var gray);
+            bgra.Save(string.Format(FilenameFormat, filename));
+            gray.Save(string.Format(FilenameFormat, filename));
         }
 
         public bool IsEqual(double one, double two, double epsilon)

@@ -305,6 +305,7 @@ namespace R2Bot
                 var info = ImageAnalyzer.CaptureScreen();
                 var filename = DateTime.Now.ToString("yy-MM-dd-hh-mm");
                 ImageAnalyzer.SaveImage(info.Item1, info.Item2, filename);
+                ImageAnalyzer.SaveCursor(info.Item1, info.Item2, filename);
                 Console.WriteLine($"Saved capture screen image to {filename}");
             }
             catch (Exception exception)
@@ -319,8 +320,9 @@ namespace R2Bot
             ImageAnalyzer imgAnalyzer = new ImageAnalyzer();
             //var info = imgAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_02 19_54_43.jpg");
             //var info = imgAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_05 19_51_53.jpg");
-            var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_03 23_49_32.jpg");
-            imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Health | ImageProcessing.Mana);
+            //var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_03 23_49_32.jpg");
+            var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "25-01-05-10-45_x=738_y=216.png"); // normal
+            imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Health | ImageProcessing.Mana | ImageProcessing.Cursor);
         }
     }
 }
