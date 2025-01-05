@@ -10,7 +10,9 @@ using System.Threading.Tasks;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.OCR;
+using Emgu.CV.Quality;
 using Emgu.CV.Structure;
+using Emgu.CV.Util;
 
 namespace R2Bot
 {
@@ -87,8 +89,26 @@ namespace R2Bot
         private Gray Threshold128Gray { get; } = new Gray(128);
         private Gray Threshold255Gray { get; } = new Gray(255);
         private const double AttackWindowColor = 140;
-        private const double Epsilon = 1;
+        private const double Epsilon = 2;
         private Rectangle AttackObjectNameRectangle { get; } = new(858, 940, 206, 20);
+        private static Rectangle CursorRect { get; } = new Rectangle(7, 7, 2, 2);
+
+        private Color NormalColor { get; } = Color.FromArgb(255, 136, 85, 12);
+        private Bgra NormalColorBgra { get; } = new Bgra(12, 85, 136, 255);
+        private Image<Bgra, byte> NormalImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
+
+        private Color AttackColor { get; } = Color.FromArgb(255, 216, 200, 168);
+        private Bgra AttackColorBgra { get; } = new Bgra(168, 200, 216, 255);
+        private Image<Bgra, byte> AttackImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
+
+        private Color NoAttackColor { get; } = Color.FromArgb(255, 218, 23, 3);
+        private Bgra NoAttackColorBgra { get; } = new Bgra(3, 23, 218, 255);
+        private Image<Bgra, byte> NoAttackImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
+
+        private Color TakeColor { get; } = Color.FromArgb(255, 188, 122, 84);
+        private Bgra TakeColorBgra { get; } = new Bgra(84, 122, 188, 255);
+        private Image<Bgra, byte> TakeImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
+
 
         public ImageAnalyzer()
         {
@@ -103,6 +123,11 @@ namespace R2Bot
             }
 
             Tesseract = new Tesseract("./tessdata/", "rus", OcrEngineMode.Default);
+
+            NormalImageBgra.SetValue(NormalColorBgra);
+            AttackImageBgra.SetValue(AttackColorBgra);
+            NoAttackImageBgra.SetValue(NoAttackColorBgra);
+            TakeImageBgra.SetValue(TakeColorBgra);
         }
 
         public ImageDescription ProcessImage(Bitmap bitmap, Point pointer, ImageProcessing task)
@@ -124,7 +149,8 @@ namespace R2Bot
 
                 if (task.HasFlag(ImageProcessing.Cursor))
                 {
-                   result.Cursor = GetCursorType(gray, pointer);
+                   result.Cursor = GetCursorType(bgra, pointer);
+                   Debug("Cursor is {0}", result.Cursor);
                 }
 
                 if (task.HasFlag(ImageProcessing.Health))
@@ -163,8 +189,8 @@ namespace R2Bot
             return result;
         }
 
-        private static Rectangle CursorRect { get; } = new Rectangle(6, 6, 5, 5);
-        private CursorType GetCursorType(Image<Gray, byte> image, Point pointer)
+
+        private CursorType GetCursorType(Image<Bgra, byte> image, Point pointer)
         {
             var rect = new Rectangle(pointer.X + CursorRect.X, pointer.Y + CursorRect.Y, CursorRect.Width,
                 CursorRect.Height);
@@ -174,12 +200,35 @@ namespace R2Bot
             CvInvoke.NamedWindow("cursor area");
             CvInvoke.Imshow("cursor area", cursorArea);
 #endif
+            if (DiffImages(cursorArea, NormalImageBgra, Epsilon))
+            {
+                return CursorType.Normal;
+            }
 
+            if (DiffImages(cursorArea, AttackImageBgra, Epsilon))
+            {
+                return CursorType.Attack;
+            }
 
+            if (DiffImages(cursorArea, NoAttackImageBgra, Epsilon))
+            {
+                return CursorType.NoAttack;
+            }
 
-
+            if (DiffImages(cursorArea, TakeImageBgra, Epsilon))
+            {
+                return CursorType.Take;
+            }
 
             return CursorType.None;
+        }
+
+        private bool DiffImages(Image<Bgra, byte> image1, Image<Bgra, byte> image2, double epsilon)
+        {
+            var diff = image1.AbsDiff(image2);
+            var averageColor = diff.GetAverage();
+            var average = (averageColor.Red + averageColor.Green + averageColor.Blue) / 3.0;
+            return average < epsilon;
         }
 
         private bool IsAttackWindowOpen(Image<Gray, byte> image)
@@ -202,7 +251,7 @@ namespace R2Bot
 #if IMGUI_DEBUG_WINDOW
                 CvInvoke.NamedWindow("attack window bottom edge");
                 CvInvoke.Imshow("attack window bottom edge", bottomEdge);
-    #endif
+#endif
                 var bottomAverage = bottomEdge.GetAverage();
                 Debug($"attack window bottom average = {bottomAverage.Intensity}");
                 if (IsEqual(bottomAverage.Intensity, AttackWindowColor, Epsilon))

@@ -321,8 +321,11 @@ namespace R2Bot
             //var info = imgAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_02 19_54_43.jpg");
             //var info = imgAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_05 19_51_53.jpg");
             //var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_03 23_49_32.jpg");
-            var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "25-01-05-10-45_x=738_y=216.png"); // normal
-            imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Health | ImageProcessing.Mana | ImageProcessing.Cursor);
+            var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "25-01-05-10-47_x=1013_y=543.png"); // no_attack
+            info.Item2.X = 1013;
+            info.Item2.Y = 543;
+
+            imgAnalyzer.ProcessImage(info.Item1, info.Item2,  ImageProcessing.Cursor);
         }
     }
 }
