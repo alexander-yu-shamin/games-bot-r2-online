@@ -1,11 +1,13 @@
 ﻿using Interceptor;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Keys = Interceptor.Keys;
 
 namespace R2Bot
 {
@@ -135,7 +137,7 @@ namespace R2Bot
                         break;
                     }
                     MoveMouseTo(x, y);
-                    if(FindMonster(ImageAnalyzer.CaptureScreen()))
+                    if(FindMonster())
                     {
                         return true;
                     }
@@ -149,7 +151,7 @@ namespace R2Bot
                         break;
                     }
                     MoveMouseTo(x, y);
-                    if(FindMonster(ImageAnalyzer.CaptureScreen()))
+                    if(FindMonster())
                     {
                         return true;
                     }
@@ -161,6 +163,56 @@ namespace R2Bot
                 step_x = -step_x;
                 step_y = -step_y;
             }
+            return false;
+        }
+
+        private bool FindMonster()
+        {
+            var info = ImageAnalyzer.CaptureScreen();
+            var result = ImageAnalyzer.ProcessImage(info.Item1, info.Item2,
+                ImageProcessing.Cursor | ImageProcessing.Mana | ImageProcessing.Health);
+            if (!result.IsImageProcessed)
+            {
+                Debug("Image isn't processed");
+                return false;
+            }
+
+            if (result.Health < 0.2)
+            {
+                Input.SendKey(Keys.Eight);
+                Exit();
+            }
+
+            if (result.Health < 0.5)
+            {
+                Input.SendKey(Keys.Q);
+            }
+
+            if (result.Cursor == CursorType.Attack)
+            {
+                Input.SendLeftRightClick(250);
+
+                info = ImageAnalyzer.CaptureScreen();
+                result = ImageAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.AttackName);
+                if (!string.IsNullOrEmpty(result.AttackObjectName))
+                {
+                    if (result.AttackObjectName.Contains("Тотем жизни"))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        CurrentState = State.Kill;
+                        return true;
+                    }
+                }
+                else
+                {
+                    CurrentState = State.Kill;
+                    return true;
+                }
+            }
+
             return false;
         }
 
@@ -177,71 +229,36 @@ namespace R2Bot
 
             do
             {
-                ////var (image, x, y) = ImageAnalyzer.CaptureScreen();
-                //var popupColor = Color.FromArgb(255, 165, 138, 82);
-                //var color1 = image.GetPixel(960, 929);
-                //var color2 = image.GetPixel(960, 930);
-                ////image.Save("D:\\popup.png", ImageFormat.Png);
-                //if(color1  == color2 && color1 == popupColor)
-                //{
-                //    Thread.Sleep(250);
-                //}
-                //else
-                //{
-                //    popupOpen = false;
-                //    CurrentState = State.Take;
-                //}
+                var info = ImageAnalyzer.CaptureScreen();
+                var result = ImageAnalyzer.ProcessImage(info.Item1, info.Item2,
+                    ImageProcessing.AttackWindow | ImageProcessing.Health);
+
+                if (result.Health < 0.2)
+                {
+                    Input.SendKey(Keys.Eight);
+                    Exit();
+                }
+
+                if (result.Health < 0.5)
+                {
+                    Input.SendKey(Keys.Q);
+                }
+
+                popupOpen = result.IsAttackWindowOpen;
             }
             while (popupOpen);
         }
 
         private void Take()
         {
-            for(var i = 0; i< 10; i++)
+            for(var i = 0; i< 5; i++)
             {
                 Input.SendKey(Interceptor.Keys.E);
-                Thread.Sleep(50);
+                Thread.Sleep(250);
             }
 
             CurrentState = State.Search;
         }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <returns> false = not found, true = found</returns>
-        private bool FindMonster((Bitmap image, Point point) input)
-        {
-            var cursor_x = input.point.X + 7;
-            var cursor_y = input.point.Y + 7;
-            if(input.image == null)
-            {
-                CurrentState = State.Exit;
-                Exit();
-                return true;
-            }
-
-
-            var cursor_color = input.image.GetPixel(cursor_x, cursor_y);
-            //var normalCursor = Color.FromArgb(255, 58, 19, 3);
-            var normalCursor = Color.FromArgb(255, 136, 85, 12);
-            var notAttackCursor = Color.FromArgb(255,218, 23, 3);
-            var attackCursor = Color.FromArgb(255,242, 242, 236);
-            if(normalCursor != cursor_color && notAttackCursor != cursor_color)
-            {
-               //input.image.Save("D:\\attack.png", ImageFormat.Png);
-                Input.SendLeftRightClick(250);
-                CurrentState = State.Kill;
-                return true;
-            }
-            else
-            {
-               //input.image.Save("D:\\normal.png", ImageFormat.Png);
-            }
-
-            return false;
-        }
-
 
         //private void TestMovement()
         //{
@@ -298,6 +315,11 @@ namespace R2Bot
         //}
 
 
+        [Conditional("DEBUG")]
+        public void Debug(string message, params object[] args)
+        {
+            Console.WriteLine(string.Format(message, args));
+        }
 
     }
 }

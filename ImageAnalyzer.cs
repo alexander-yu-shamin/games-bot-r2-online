@@ -1,4 +1,4 @@
-﻿#define IMGUI_DEBUG_WINDOW
+﻿//#define IMGUI_DEBUG_WINDOW
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
