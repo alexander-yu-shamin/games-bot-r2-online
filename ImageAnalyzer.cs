@@ -144,40 +144,45 @@ namespace R2Bot
                     return result;
                 }
 
-                ConvertToImage(bitmap, out var bgra, out var gray);
-                result.IsImageProcessed = true;
-
-                if (task.HasFlag(ImageProcessing.Cursor))
+                using (var bgra = bitmap.ToImage<Bgra, byte>())
                 {
-                   result.Cursor = GetCursorType(bgra, pointer);
-                   Debug("Cursor is {0}", result.Cursor);
-                }
+    #if IMGUI_DEBUG_WINDOW
+                    CvInvoke.NamedWindow("bgra");
+                    CvInvoke.Imshow("bgra", bgra);
+    #endif
+                    result.IsImageProcessed = true;
 
-                if (task.HasFlag(ImageProcessing.Health))
-                {
-                    result.Health = GetHealthInfo(bgra);
-                    Debug("Health is {0}", result.Health);
-
-                }
-
-                if (task.HasFlag(ImageProcessing.Mana))
-                {
-                    result.Mana = GetManaInfo(bgra);
-                    Debug("Mana is {0}", result.Mana);
-                }
-
-                if (task.HasFlag(ImageProcessing.AttackWindow) || task.HasFlag(ImageProcessing.AttackName))
-                {
-                    var isAttackWindowOpen = IsAttackWindowOpen(gray);
-                    result.IsAttackWindowOpen = isAttackWindowOpen;
-                    if (isAttackWindowOpen)
+                    if (task.HasFlag(ImageProcessing.Cursor))
                     {
-                        var name = TryGetAttackObjectName(gray);
-                        result.AttackObjectName = name;
+                       result.Cursor = GetCursorType(bgra, pointer);
+                       Debug("Cursor is {0}", result.Cursor);
                     }
-                    else
+
+                    if (task.HasFlag(ImageProcessing.Health))
                     {
-                        result.AttackObjectName = string.Empty;
+                        result.Health = GetHealthInfo(bgra);
+                        Debug("Health is {0}", result.Health);
+                    }
+
+                    if (task.HasFlag(ImageProcessing.Mana))
+                    {
+                        result.Mana = GetManaInfo(bgra);
+                        Debug("Mana is {0}", result.Mana);
+                    }
+
+                    if (task.HasFlag(ImageProcessing.AttackWindow) || task.HasFlag(ImageProcessing.AttackName))
+                    {
+                        var isAttackWindowOpen = IsAttackWindowOpen(bgra);
+                        result.IsAttackWindowOpen = isAttackWindowOpen;
+                        if (isAttackWindowOpen)
+                        {
+                            var name = TryGetAttackObjectName(bgra);
+                            result.AttackObjectName = name;
+                        }
+                        else
+                        {
+                            result.AttackObjectName = string.Empty;
+                        }
                     }
                 }
             }
@@ -194,115 +199,134 @@ namespace R2Bot
         {
             var rect = new Rectangle(pointer.X + CursorRect.X, pointer.Y + CursorRect.Y, CursorRect.Width,
                 CursorRect.Height);
-            var cursorArea = image.GetSubRect(rect);
-
-#if IMGUI_DEBUG_WINDOW
-            CvInvoke.NamedWindow("cursor area");
-            CvInvoke.Imshow("cursor area", cursorArea);
-#endif
-            if (DiffImages(cursorArea, NormalImageBgra, Epsilon))
+            using (var cursorArea = image.GetSubRect(rect))
             {
-                return CursorType.Normal;
-            }
+    #if IMGUI_DEBUG_WINDOW
+                CvInvoke.NamedWindow("cursor area");
+                CvInvoke.Imshow("cursor area", cursorArea);
+    #endif
+                if(DiffImages(cursorArea, NormalImageBgra, Epsilon))
+                {
+                    return CursorType.Normal;
+                }
 
-            if (DiffImages(cursorArea, AttackImageBgra, Epsilon))
-            {
-                return CursorType.Attack;
-            }
+                if (DiffImages(cursorArea, AttackImageBgra, Epsilon))
+                {
+                    return CursorType.Attack;
+                }
 
-            if (DiffImages(cursorArea, NoAttackImageBgra, Epsilon))
-            {
-                return CursorType.NoAttack;
-            }
+                if (DiffImages(cursorArea, NoAttackImageBgra, Epsilon))
+                {
+                    return CursorType.NoAttack;
+                }
 
-            if (DiffImages(cursorArea, TakeImageBgra, Epsilon))
-            {
-                return CursorType.Take;
-            }
+                if (DiffImages(cursorArea, TakeImageBgra, Epsilon))
+                {
+                    return CursorType.Take;
+                }
 
-            return CursorType.None;
+                return CursorType.None;
+            }
         }
 
         private bool DiffImages(Image<Bgra, byte> image1, Image<Bgra, byte> image2, double epsilon)
         {
-            var diff = image1.AbsDiff(image2);
-            var averageColor = diff.GetAverage();
-            var average = (averageColor.Red + averageColor.Green + averageColor.Blue) / 3.0;
-            return average < epsilon;
+            using (var diff = image1.AbsDiff(image2))
+            {
+                var averageColor = diff.GetAverage();
+                var average = (averageColor.Red + averageColor.Green + averageColor.Blue) / 3.0;
+                return average < epsilon;
+            }
         }
 
-        private bool IsAttackWindowOpen(Image<Gray, byte> image)
+        private bool IsAttackWindowOpen(Image<Bgra, byte> image)
         {
-            var attack = image.GetSubRect(AttackWindowRectangle);
-#if IMGUI_DEBUG_WINDOW
-            CvInvoke.NamedWindow("attack window");
-            CvInvoke.Imshow("attack window", attack);
-#endif
-            var topEdge = attack.GetSubRect(AttackWindowTopEdgeRectangle);
-#if IMGUI_DEBUG_WINDOW
-            CvInvoke.NamedWindow("attack window top edge");
-            CvInvoke.Imshow("attack window top edge", topEdge);
-#endif
-            var topAverage = topEdge.GetAverage();
-            Debug($"attack window top average = {topAverage.Intensity}");
-            if (IsEqual(topAverage.Intensity, AttackWindowColor, Epsilon))
+            using(var subRect = image.GetSubRect(AttackWindowRectangle))
+            using (var attack = new Image<Gray, byte>(subRect.Size))
             {
-                var bottomEdge = attack.GetSubRect(AttackWindowTopEdgeRectangle);
-#if IMGUI_DEBUG_WINDOW
-                CvInvoke.NamedWindow("attack window bottom edge");
-                CvInvoke.Imshow("attack window bottom edge", bottomEdge);
-#endif
-                var bottomAverage = bottomEdge.GetAverage();
-                Debug($"attack window bottom average = {bottomAverage.Intensity}");
-                if (IsEqual(bottomAverage.Intensity, AttackWindowColor, Epsilon))
+                CvInvoke.CvtColor(subRect, attack, ColorConversion.Bgra2Gray);
+    #if IMGUI_DEBUG_WINDOW
+                CvInvoke.NamedWindow("attack window");
+                CvInvoke.Imshow("attack window", attack);
+    #endif
+                var topEdge = attack.GetSubRect(AttackWindowTopEdgeRectangle);
+    #if IMGUI_DEBUG_WINDOW
+                CvInvoke.NamedWindow("attack window top edge");
+                CvInvoke.Imshow("attack window top edge", topEdge);
+    #endif
+                var topAverage = topEdge.GetAverage();
+                Debug($"attack window top average = {topAverage}");
+                if (IsEqual(topAverage.Intensity, AttackWindowColor, Epsilon))
                 {
-                    Debug("This is Attack window");
-                    return true;
+                    var bottomEdge = attack.GetSubRect(AttackWindowTopEdgeRectangle);
+    #if IMGUI_DEBUG_WINDOW
+                    CvInvoke.NamedWindow("attack window bottom edge");
+                    CvInvoke.Imshow("attack window bottom edge", bottomEdge);
+    #endif
+                    var bottomAverage = bottomEdge.GetAverage();
+                    Debug($"attack window bottom average = {bottomAverage.Intensity}");
+                    if (IsEqual(bottomAverage.Intensity, AttackWindowColor, Epsilon))
+                    {
+                        Debug("This is Attack window");
+                        return true;
+                    }
+                }
+                Debug($"Not attack window");
+                return false;
+            }
+        }
+
+        private string TryGetAttackObjectName(Image<Bgra, byte> bgra)
+        {
+            using (var gray = new Image<Gray, byte>(bgra.Size))
+            {
+
+                CvInvoke.CvtColor(bgra, gray, ColorConversion.Bgra2Gray);
+#if IMGUI_DEBUG_WINDOW
+                CvInvoke.NamedWindow("gray");
+                CvInvoke.Imshow("gray", gray);
+#endif
+#if DEBUG_STOPWATCH
+                var stopwatch = Stopwatch.StartNew();
+#endif
+                using(var attackObjectImage = gray.GetSubRect(AttackObjectNameRectangle))
+                using (var binaryAttackObjectImage =
+                       attackObjectImage.ThresholdBinary(Threshold128Gray, Threshold255Gray))
+                {
+
+
+    #if IMGUI_DEBUG_WINDOW
+                    CvInvoke.NamedWindow("binary Attack Object Image");
+                    CvInvoke.Imshow("binary Attack Object Image", binaryAttackObjectImage);
+    #endif
+                    Tesseract.SetImage(binaryAttackObjectImage);
+                    if (Tesseract.Recognize() != -1)
+                    {
+                        var result = Tesseract.GetUTF8Text();
+                        result = result.Replace(".", string.Empty);
+                        result = result.Replace("/", string.Empty);
+                        result = result.Replace("\\", string.Empty);
+                        result = result.Replace("|", string.Empty);
+
+                        Debug($"Tesseract:: Result is {result}");
+        #if DEBUG_STOPWATCH
+                        stopwatch.Stop();
+                        Debug($"Stopwatch {stopwatch.ElapsedMilliseconds}ms or {stopwatch.ElapsedTicks}ticks");
+        #endif
+                        return result;
+                    }
+                    else
+                    {
+                        Debug("Tesseract:: Cannot recognise text");
+                    }
+
+        #if DEBUG_STOPWATCH
+                    stopwatch.Stop();
+                    Debug($"Stopwatch {stopwatch.ElapsedMilliseconds}ms or {stopwatch.ElapsedTicks}ticks");
+        #endif
+                    return string.Empty;
                 }
             }
-            Debug($"Not attack window");
-            return false;
-        }
-
-        private string TryGetAttackObjectName(Image<Gray, byte> image)
-        {
-#if DEBUG_STOPWATCH
-            var stopwatch = Stopwatch.StartNew();
-#endif
-            var attackObjectImage = image.GetSubRect(AttackObjectNameRectangle);
-            var binaryAttackObjectImage = attackObjectImage.ThresholdBinary(Threshold128Gray, Threshold255Gray);
-
-#if IMGUI_DEBUG_WINDOW
-            CvInvoke.NamedWindow("binary Attack Object Image");
-            CvInvoke.Imshow("binary Attack Object Image", binaryAttackObjectImage);
-#endif
-
-            Tesseract.SetImage(binaryAttackObjectImage);
-            if (Tesseract.Recognize() != -1)
-            {
-                var result = Tesseract.GetUTF8Text();
-                result = result.Replace(".", string.Empty);
-                result = result.Replace("/", string.Empty);
-                result = result.Replace("\\", string.Empty);
-                result = result.Replace("|", string.Empty);
-
-                Debug($"Tesseract:: Result is {result}");
-#if DEBUG_STOPWATCH
-                stopwatch.Stop();
-                Debug($"Stopwatch {stopwatch.ElapsedMilliseconds}ms or {stopwatch.ElapsedTicks}ticks");
-#endif
-                return result;
-            }
-            else
-            {
-                Debug("Tesseract:: Cannot recognise text");
-            }
-
-#if DEBUG_STOPWATCH
-            stopwatch.Stop();
-            Debug($"Stopwatch {stopwatch.ElapsedMilliseconds}ms or {stopwatch.ElapsedTicks}ticks");
-#endif
-            return string.Empty;
         }
 
         private float GetManaInfo(Image<Bgra, byte> image)
@@ -321,36 +345,26 @@ namespace R2Bot
             var stopwatch = Stopwatch.StartNew();
 #endif
 
-            var searchArea = image.GetSubRect(rect);
-#if IMGUI_DEBUG_WINDOW
-            CvInvoke.NamedWindow("search area");
-            CvInvoke.Imshow("search area", searchArea);
-#endif
-            var channels = searchArea.Split();
-            var channelAverage = channels[channel].ThresholdBinary(Threshold128Gray, Threshold255Gray).GetAverage();
+            using (var searchArea = image.GetSubRect(rect))
+            {
+    #if IMGUI_DEBUG_WINDOW
+                CvInvoke.NamedWindow("search area");
+                CvInvoke.Imshow("search area", searchArea);
+    #endif
+                var channels = searchArea.Split();
+                using (var channelThresholdBinary =
+                       channels[channel].ThresholdBinary(Threshold128Gray, Threshold255Gray))
+                {
+                      var channelAverage = channelThresholdBinary.GetAverage();
+                    var result = (float)channelAverage.Intensity / 255;
 
-            var result = (float)channelAverage.Intensity / 255;
-
-#if DEBUG_STOPWATCH
-            stopwatch.Stop();
-            Debug($"Stopwatch {stopwatch.ElapsedMilliseconds}ms or {stopwatch.ElapsedTicks}ticks");
-#endif
-            return result;
-        }
-
-        private static void ConvertToImage(Bitmap bitmap, out Image<Bgra, byte> bgra, out Image<Gray, byte> gray)
-        {
-            bgra = bitmap.ToImage<Bgra, byte>();
-#if IMGUI_DEBUG_WINDOW
-            CvInvoke.NamedWindow("bgra");
-            CvInvoke.Imshow("bgra", bgra);
-#endif
-            gray = new Image<Gray, byte>(bgra.Size);
-            CvInvoke.CvtColor(bgra, gray, ColorConversion.Bgra2Gray);
-#if IMGUI_DEBUG_WINDOW
-            CvInvoke.NamedWindow("gray");
-            CvInvoke.Imshow("gray", gray);
-#endif
+        #if DEBUG_STOPWATCH
+                    stopwatch.Stop();
+                    Debug($"Stopwatch {stopwatch.ElapsedMilliseconds}ms or {stopwatch.ElapsedTicks}ticks");
+        #endif
+                    return result;
+                }
+            }
         }
 
         public static void SaveImage(Bitmap bitmap, Point point, string name)
@@ -418,19 +432,6 @@ namespace R2Bot
             }
 
             return (result, pointer);
-        }
-
-        public static void SaveCursor(Bitmap bitmap, Point point, string filename)
-        {
-            ConvertToImage(bitmap, out var bgra, out var gray);
-
-            var rect = new Rectangle(point.X + CursorRect.X, point.Y + CursorRect.Y, CursorRect.Width,
-                CursorRect.Height);
-            var cursorAreaBgra = bgra.GetSubRect(rect);
-            var cursorAreaGray = gray.GetSubRect(rect);
-
-            cursorAreaBgra.Save(string.Format(CursorFilenameFormat, filename, "bgra", point.X, point.Y));
-            cursorAreaGray.Save(string.Format(CursorFilenameFormat, filename, "gray", point.X, point.Y));
         }
 
         public bool IsEqual(double one, double two, double epsilon)

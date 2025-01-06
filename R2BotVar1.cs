@@ -4,16 +4,76 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Keys = Interceptor.Keys;
+using Timer = System.Timers.Timer;
 
 namespace R2Bot
 {
+
+    internal class BotConfiguration
+    {
+        public class Skill
+        {
+            public bool IsAttackSkill { get; set; }
+            public Interceptor.Keys Key { get; set; }
+            public TimeSpan Delay { get; set; }
+            public DateTime? Timestamp { get; set; } = null;
+            public Double Threshold { get; set; }
+        }
+
+        public Interceptor.Keys TpKey { get; set; }
+        public double TpThreshold { get; set; }
+        public Interceptor.Keys HpKey { get; set; }
+        public double HpThreshold { get; set; }
+
+        public double ManaThreshold { get; set; }
+
+        public List<Skill> AllSkills { get; } = new List<Skill>();
+    }
+
+    internal class BotInternalConfiguration : BotConfiguration
+    {
+        public BotInternalConfiguration(BotConfiguration config)
+        {
+            Health = new Skill()
+            {
+                IsAttackSkill = false,
+                Key = config.HpKey,
+                Threshold = config.HpThreshold
+            };
+
+            Mana = new Skill()
+            {
+                IsAttackSkill = false,
+                Threshold = config.ManaThreshold
+            };
+
+            Tp = new Skill()
+            {
+                IsAttackSkill = false,
+                Key = config.TpKey,
+                Threshold = config.TpThreshold
+            };
+
+            AttackSkill = AllSkills.Where(e => e.IsAttackSkill).ToList();
+            NotAttackSkill = AllSkills.Where(e => !e.IsAttackSkill).ToList();
+        }
+
+        public Skill Health { get; }
+        public Skill Mana { get; }
+        public Skill Tp { get; }
+
+        public List<Skill> AttackSkill { get; }
+        public List<Skill> NotAttackSkill { get; }
+    }
+
     internal class R2BotVar1
     {
-        private Thread BotThread { get; set; }
+        public Thread MainThread { get; set; }
         private bool ExitFlag { get; set; } = false;
 
         private enum State
@@ -24,28 +84,27 @@ namespace R2Bot
             Take,
             Wait,
             TP,
+            Skills,
+            Move,
             Exit
         }
 
         private State CurrentState { get; set; } = State.None;
         private Input Input { get; }
         private ImageAnalyzer ImageAnalyzer { get; } = new ImageAnalyzer();
+        private BotInternalConfiguration Config { get; set; }
 
         public R2BotVar1(Input input)
         {
             Input = input;
         }
 
-        public void Start()
+        public void Start(BotConfiguration config)
         {
-            if (BotThread != null)
-            {
-                return;
-            }
-
-            BotThread = new Thread(Run);
-            BotThread.Start();
-
+            Debug("Bot started");
+            Config = new BotInternalConfiguration(config);
+            MainThread = new Thread(Run);
+            MainThread.Start();
         }
 
         public void Exit()
@@ -53,6 +112,8 @@ namespace R2Bot
             ExitFlag = true;
         }
 
+
+        private int NumberOfFailedSearch { get; set; } = 0;
         private void Run()
         {
             while (!ExitFlag)
@@ -67,38 +128,111 @@ namespace R2Bot
 
                     case State.Search:
                         {
-                            Search();
+                            Debug("Search");
+                            if (Search())
+                            {
+                                NumberOfFailedSearch++;
+                            }
+                            else
+                            {
+                                NumberOfFailedSearch = 0;
+                            }
+
+                            if (NumberOfFailedSearch > 10)
+                            {
+                                CurrentState = State.Move;
+                            }
                             break;
                         }
 
                     case State.Kill:
                         {
-                            KillMonster();
+                            Debug("Kill monster");
+                            if (KillMonster())
+                            {
+                                CurrentState = State.Take;
+                            }
+                            else
+                            {
+                                CurrentState = State.TP;
+                            }
                             break;
                         }
 
                     case State.Take:
                         {
                             Take();
+                            CurrentState = State.Skills;
                             break;
                         }
+
+                    case State.TP:
+                    {
+                        for (int i = 0; i < 3; i++)
+                        {
+                            Input.SendKey(Config.Tp.Key);
+                        }
+                        Exit();
+                        CurrentState = State.Exit;
+                        break;
+                    }
+
+                    case State.Skills:
+                    {
+                        ProcessSkills();
+                        CurrentState = State.Search;
+                        break;
+                    }
+
+                    case State.Wait:
+                    {
+                        break;
+                    }
+
+                    case State.Move:
+                    {
+                        Move();
+                        CurrentState = State.Search;
+                        break;
+                    }
 
                     case State.Exit:
                     default: 
                         {
                             return;
                         }
-
-
                 }
-
-
             }
-
-
-
         }
 
+        private void Move()
+        {
+            Input.SendKeyWithDelay(Keys.D, 250);
+        }
+
+        private void ProcessSkills()
+        {
+            foreach (var skill in Config.NotAttackSkill)
+            {
+                if (skill.Timestamp == null)
+                {
+                    skill.Timestamp = DateTime.Now;
+                    continue;
+                }
+
+                if (DateTime.Now - skill.Timestamp >= skill.Delay)
+                {
+                    Input.SendKey(skill.Key);
+                    skill.Timestamp = DateTime.Now;
+                    Thread.Sleep(500);
+                }
+            }
+        }
+
+        private void ProcessAttackSkills()
+        {
+
+        }
 
         private bool Search()
         {
@@ -129,6 +263,7 @@ namespace R2Bot
                     CurrentState = State.Exit;
                     return true;
                 }
+
                 for (var j = 0; j < i; j++)
                 {
                     x += step_x;
@@ -136,6 +271,7 @@ namespace R2Bot
                     {
                         break;
                     }
+
                     MoveMouseTo(x, y);
                     if(FindMonster())
                     {
@@ -150,6 +286,7 @@ namespace R2Bot
                     {
                         break;
                     }
+
                     MoveMouseTo(x, y);
                     if(FindMonster())
                     {
@@ -166,38 +303,60 @@ namespace R2Bot
             return false;
         }
 
-        private bool FindMonster()
+        private ImageDescription ProcessImage(ImageProcessing flag)
         {
             var info = ImageAnalyzer.CaptureScreen();
-            var result = ImageAnalyzer.ProcessImage(info.Item1, info.Item2,
-                ImageProcessing.Cursor | ImageProcessing.Mana | ImageProcessing.Health);
+            var result = ImageAnalyzer.ProcessImage(info.Item1, info.Item2, flag | ImageProcessing.Mana | ImageProcessing.Health);
+
+
+            return result;
+        }
+
+        private bool Routine(ImageDescription result)
+        {
+            if (result.IsImageProcessed)
+            {
+                if (result.Health <= Config.TpThreshold)
+                {
+                    CurrentState = State.TP;
+                    return true;
+                }
+
+                if (result.Health < Config.HpThreshold)
+                {
+                    Input.SendKey(Config.HpKey);
+                }
+            }
+
+            return false;
+        }
+
+        private bool FindMonster()
+        {
+            var result = ProcessImage(ImageProcessing.Cursor);
+
             if (!result.IsImageProcessed)
             {
                 Debug("Image isn't processed");
                 return false;
             }
 
-            if (result.Health < 0.2)
+            if (Routine(result))
             {
-                Input.SendKey(Keys.Eight);
-                Exit();
-            }
-
-            if (result.Health < 0.5)
-            {
-                Input.SendKey(Keys.Q);
+                CurrentState = State.TP;
+                return true;
             }
 
             if (result.Cursor == CursorType.Attack)
             {
                 Input.SendLeftRightClick(250);
 
-                info = ImageAnalyzer.CaptureScreen();
-                result = ImageAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.AttackName);
+                result = ProcessImage(ImageProcessing.AttackName);
                 if (!string.IsNullOrEmpty(result.AttackObjectName))
                 {
                     if (result.AttackObjectName.Contains("Тотем жизни"))
                     {
+                        Input.SendRightLeftClick(250);
                         return false;
                     }
                     else
@@ -219,34 +378,26 @@ namespace R2Bot
         private void MoveMouseTo(int x, int y)
         {
             Input.MoveMouseTo((int)x, (int)y, true);
-            Thread.Sleep(10);
         }
 
-        private void KillMonster()
+        private bool KillMonster()
         {
             var popupOpen = true;
             Input.SendKey(Interceptor.Keys.One);
 
             do
             {
-                var info = ImageAnalyzer.CaptureScreen();
-                var result = ImageAnalyzer.ProcessImage(info.Item1, info.Item2,
-                    ImageProcessing.AttackWindow | ImageProcessing.Health);
-
-                if (result.Health < 0.2)
+                var result = ProcessImage(ImageProcessing.AttackWindow);
+                if (Routine(result))
                 {
-                    Input.SendKey(Keys.Eight);
-                    Exit();
-                }
-
-                if (result.Health < 0.5)
-                {
-                    Input.SendKey(Keys.Q);
+                    return false;
                 }
 
                 popupOpen = result.IsAttackWindowOpen;
             }
             while (popupOpen);
+
+            return true;
         }
 
         private void Take()
@@ -256,63 +407,7 @@ namespace R2Bot
                 Input.SendKey(Interceptor.Keys.E);
                 Thread.Sleep(250);
             }
-
-            CurrentState = State.Search;
         }
-
-        //private void TestMovement()
-        //{
-        //    var max = 65536;
-        //    var border_min = 256;
-        //    var border_max = max - border_min;
-        //    var step = max / 50;
-
-        //    for(int i = 0; i < max; i += step)
-        //    {
-        //        Update(i, border_min); 
-        //    }
-
-        //    Input.SendKey(Interceptor.Keys.One);
-
-        //    for(int i = 0; i < max; i += step)
-        //    {
-        //        Update(border_max, i); 
-        //    }
-
-        //    Input.SendKey(Interceptor.Keys.Two);
-
-        //    for(int i = max; i > 0; i -= step)
-        //    {
-        //        Update(i, border_max); 
-        //    }
-
-        //    Input.SendKey(Interceptor.Keys.Three);
-
-        //    for(int i = max; i > 0; i -= step)
-        //    {
-        //        Update(border_min, i); 
-        //    }
-        //    Input.SendKey(Interceptor.Keys.Four);
-        //    Input.SendKey(Interceptor.Keys.Q);
-        //    Input.SendKey(Interceptor.Keys.Eight);
-        //}
-
-        //private void TestImage()
-        //{
-        //    var (image, x, y) = CaptureScreen();
-        //    image.Save("D:\\test.png", ImageFormat.Png);
-        //    x += 1;
-        //    y += 1;
-        //    var color = image.GetPixel(x, y); // (255,1,0,1)
-        //    var usualCursor = Color.FromArgb(255, 198, 173, 104);
-        //    var attackCursor = Color.FromArgb(255,242, 242, 236);
-        //    if(color == attackCursor)
-        //    {
-        //        int i = 0;
-        //        Input.SendLeftRightClick(200);
-        //    }
-
-        //}
 
 
         [Conditional("DEBUG")]

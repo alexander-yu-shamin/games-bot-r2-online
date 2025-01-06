@@ -1,12 +1,15 @@
 
+using System.CodeDom.Compiler;
 using Interceptor;
 using System.Diagnostics;
 using System.Drawing.Imaging;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.OCR;
 using Emgu.CV.Structure;
+using Newtonsoft.Json;
 using Keys = System.Windows.Forms.Keys;
 
 namespace R2Bot
@@ -16,13 +19,14 @@ namespace R2Bot
         private KeyboardHook KeyboardHook { get; } = new KeyboardHook();
         private bool IsWorking { get; set; } = false;
         private Input Input { get; set; }
+        private string DefaultConfigPath { get; set; } = "default_config.json";
+        private string ConfigPath { get; set; } = "bot_config.json";
 
-        private R2BotVar1 Var1 { get; set; }
+        private R2BotVar1 R2BotVar1 { get; set; }
 
         public R2Bot()
         {
             InitializeComponent();
-            InitializeGroups();
             InitializeKeyboardHooks();
             InitializeDriverImitator();
             InitializeBot(Input);
@@ -48,173 +52,6 @@ namespace R2Bot
 
         private List<SkillElement> Elements { get; } = new List<SkillElement>();
 
-        private void InitializeGroups()
-        {
-            var startY = 40;
-            var spacing = 100;
-            var defaultDuration = TimeSpan.FromSeconds(50);
-
-            for (var i = 0; i < 5; i++)
-            {
-                var groupBox = new GroupBox
-                {
-                    Name = $"Skill #{i + 1}",
-                    Text = $"Skill #{i + 1}",
-                    Size = new Size(450, 100),
-                    Location = new Point(10, startY + (i * spacing)),
-                };
-
-                var checkBox = new CheckBox
-                {
-                    Text = "Enable",
-                    Location = new Point(10, 20),
-                    Checked = true,
-                    AutoSize = true
-                };
-
-                Label durationLabel = new Label
-                {
-                    Text = "Duration:",
-                    Location = new System.Drawing.Point(8, 45),
-                    AutoSize = true
-                };
-
-                TextBox durationTextBox = new TextBox
-                {
-                    Location = new System.Drawing.Point(70, 40),
-                    Width = 100,
-                    Text = defaultDuration.ToString()
-                };
-
-                Label keyLabel = new Label
-                {
-                    Text = "Key:",
-                    Location = new System.Drawing.Point(180, 45),
-                    AutoSize = true
-                };
-
-                TextBox keyTextBox = new TextBox
-                {
-                    Location = new System.Drawing.Point(210, 40),
-                    Width = 100,
-                    Text = $"{i + 1}"
-                };
-
-                groupBox.Controls.Add(checkBox);
-                groupBox.Controls.Add(durationLabel);
-                groupBox.Controls.Add(durationTextBox);
-                groupBox.Controls.Add(keyLabel);
-                groupBox.Controls.Add(keyTextBox);
-
-                var element = new SkillElement
-                {
-
-                    GroupBox = groupBox,
-                    CheckBox = checkBox,
-                    Duration = durationTextBox,
-                    Key = keyTextBox,
-                    TypeSkill = TypeSkill.Skill
-                };
-
-                this.Controls.Add(groupBox);
-
-                Elements.Add(element);
-            }
-
-            // TP
-            var groupTPBox = new GroupBox
-            {
-                Name = $"TP",
-                Text = $"TP",
-                Size = new Size(450, 100),
-                Location = new Point(10, startY + (5 * spacing)),
-            };
-
-            var checkTPBox = new CheckBox
-            {
-                Text = "Enable",
-                Location = new Point(10, 20),
-                Checked = true,
-                AutoSize = true
-            };
-
-            Label keyTPLabel = new Label
-            {
-                Text = "Key:",
-                Location = new System.Drawing.Point(180, 45),
-                AutoSize = true
-            };
-
-            TextBox keyTPTextBox = new TextBox
-            {
-                Location = new System.Drawing.Point(210, 40),
-                Width = 100,
-                Text = $"8"
-            };
-
-            groupTPBox.Controls.Add(checkTPBox);
-            groupTPBox.Controls.Add(keyTPLabel);
-            groupTPBox.Controls.Add(keyTPTextBox);
-
-            var elementTP = new SkillElement
-            {
-                GroupBox = groupTPBox,
-                CheckBox = checkTPBox,
-                Key = keyTPTextBox,
-                TypeSkill = TypeSkill.Tp
-            };
-
-            this.Controls.Add(groupTPBox);
-
-            Elements.Add(elementTP);
-
-            // HILL
-            var groupHIllBox = new GroupBox
-            {
-                Name = $"HIll",
-                Text = $"HIll",
-                Size = new Size(450, 100),
-                Location = new Point(10, startY + (6 * spacing)),
-            };
-
-            var checkHIllBox = new CheckBox
-            {
-                Text = "Enable",
-                Location = new Point(10, 20),
-                Checked = true,
-                AutoSize = true
-            };
-
-            Label keyHIllLabel = new Label
-            {
-                Text = "Key:",
-                Location = new System.Drawing.Point(180, 45),
-                AutoSize = true
-            };
-
-            TextBox keyHIllTextBox = new TextBox
-            {
-                Location = new System.Drawing.Point(210, 40),
-                Width = 100,
-                Text = $"q"
-            };
-
-            groupHIllBox.Controls.Add(checkHIllBox);
-            groupHIllBox.Controls.Add(keyHIllLabel);
-            groupHIllBox.Controls.Add(keyHIllTextBox);
-
-            var elementHIll = new SkillElement
-            {
-                GroupBox = groupHIllBox,
-                CheckBox = checkHIllBox,
-                Key = keyHIllTextBox,
-                TypeSkill = TypeSkill.Hill
-            };
-
-            this.Controls.Add(groupHIllBox);
-
-            Elements.Add(elementHIll);
-        }
 
         private void InitializeDriverImitator()
         {
@@ -226,7 +63,7 @@ namespace R2Bot
 
         private void InitializeBot(Input input)
         {
-            Var1 = new R2BotVar1(input);
+            R2BotVar1 = new R2BotVar1(input);
             Console.WriteLine($"Initialize bot");
         }
 
@@ -242,21 +79,21 @@ namespace R2Bot
         void KeyboardHook_KeyPressed(object sender, KeyPressedEventArgs e)
         {
             var defaultModifier = global::R2Bot.ModifierKeys.Alt;
-            if (e.Modifier == defaultModifier)
+            if(e.Modifier == defaultModifier)
             {
-                if (e.Key == System.Windows.Forms.Keys.F12)
+                if(e.Key == System.Windows.Forms.Keys.F12)
                 {
                     IsWorking = !IsWorking;
                     WorkingLabel.Text = IsWorking ? "WORKING" : "NOT WORKING";
                     Bot(IsWorking);
                 }
 
-                if (e.Key == Keys.F11)
+                if(e.Key == Keys.F11)
                 {
                     Testing();
                 }
 
-                if (e.Key == Keys.F10)
+                if(e.Key == Keys.F10)
                 {
                     SaveImage();
                 }
@@ -269,7 +106,7 @@ namespace R2Bot
 
         private void R2Bot_Resize(object sender, EventArgs e)
         {
-            if (this.WindowState == FormWindowState.Minimized)
+            if(this.WindowState == FormWindowState.Minimized)
             {
                 this.Hide();
                 this.trayIcon.Visible = false;
@@ -278,7 +115,7 @@ namespace R2Bot
 
         private void trayIcon_MouseDoubleClick(object sender, MouseEventArgs e)
         {
-            if (this.WindowState == FormWindowState.Minimized)
+            if(this.WindowState == FormWindowState.Minimized)
             {
                 this.WindowState = FormWindowState.Normal;
                 this.Activate();
@@ -286,15 +123,112 @@ namespace R2Bot
             }
         }
 
+        private BotConfiguration ReadBotConfig()
+        {
+            BotConfiguration config = DefaultBotConfig();
+            if(!File.Exists(ConfigPath))
+            {
+                if(!File.Exists(DefaultConfigPath))
+                {
+                    var json = JsonConvert.SerializeObject(config);
+                    File.WriteAllText(DefaultConfigPath, json);
+                    File.WriteAllText(ConfigPath, json);
+                }
+                else
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(DefaultConfigPath);
+                        config = JsonConvert.DeserializeObject<BotConfiguration>(json);
+                        File.WriteAllText(ConfigPath, json);
+                    }
+                    catch(Exception exception)
+                    {
+                        Console.WriteLine($"Something went wrong {exception.Message}");
+                        return DefaultBotConfig();
+                    }
+                }
+            }
+
+            try
+            {
+                var json = File.ReadAllText(ConfigPath);
+                config = JsonConvert.DeserializeObject<BotConfiguration>(json);
+            }
+            catch(Exception exception)
+            {
+                Console.WriteLine($"Something went wrong {exception.Message}");
+                return DefaultBotConfig();
+            }
+
+            return config;
+        }
+
+        private BotConfiguration DefaultBotConfig()
+        {
+            var botConfig = new BotConfiguration();
+
+            botConfig.HpKey = Interceptor.Keys.Q;
+            botConfig.HpThreshold = 0.6;
+
+            botConfig.ManaThreshold = 0.3;
+
+            botConfig.TpKey = Interceptor.Keys.Eight;
+            botConfig.TpThreshold = 0.2;
+
+            // Attack
+            botConfig.AllSkills.Add(new BotConfiguration.Skill
+            {
+                Key = Interceptor.Keys.One,
+                IsAttackSkill = true,
+            });
+
+            // Ogon
+            botConfig.AllSkills.Add(new BotConfiguration.Skill
+            {
+                Key = Interceptor.Keys.Three,
+                IsAttackSkill = false,
+                Delay = new TimeSpan(0, 0, 0, 35),
+            });
+
+            // Totem
+            botConfig.AllSkills.Add(new BotConfiguration.Skill
+            {
+                Key = Interceptor.Keys.Four,
+                IsAttackSkill = false,
+                Delay = new TimeSpan(0, 0, 3, 0),
+            });
+
+            // Master
+            botConfig.AllSkills.Add(new BotConfiguration.Skill
+            {
+                Key = Interceptor.Keys.F1,
+                IsAttackSkill = false,
+                Delay = new TimeSpan(0, 0, 9, 0),
+            });
+
+            // Speed
+            botConfig.AllSkills.Add(new BotConfiguration.Skill
+            {
+                Key = Interceptor.Keys.F2,
+                IsAttackSkill = false,
+                Delay = new TimeSpan(0, 0, 9, 0),
+            });
+
+            return botConfig;
+        }
+
         private void Bot(bool start)
         {
             Console.WriteLine($"Bot start = {start}");
-            if (start) 
+            if(start)
             {
-                Var1.Start();
+                var config = ReadBotConfig();
+                R2BotVar1.Start(config);
             }
-            else{
-                Var1.Exit();
+            else
+            {
+                R2BotVar1.Exit();
             }
         }
 
@@ -305,10 +239,9 @@ namespace R2Bot
                 var info = ImageAnalyzer.CaptureScreen();
                 var filename = DateTime.Now.ToString("yy-MM-dd-hh-mm");
                 ImageAnalyzer.SaveImage(info.Item1, info.Item2, filename);
-                ImageAnalyzer.SaveCursor(info.Item1, info.Item2, filename);
                 Console.WriteLine($"Saved capture screen image to {filename}");
             }
-            catch (Exception exception)
+            catch(Exception exception)
             {
                 Console.WriteLine($"Cannot save file. Exception = {exception.Message}");
             }
@@ -318,14 +251,16 @@ namespace R2Bot
         {
             Console.WriteLine($"Testing...");
             ImageAnalyzer imgAnalyzer = new ImageAnalyzer();
-            //var info = imgAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_02 19_54_43.jpg");
-            //var info = imgAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_05 19_51_53.jpg");
-            //var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "2025_01_03 23_49_32.jpg");
             var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "25-01-05-10-47_x=1013_y=543.png"); // no_attack
             info.Item2.X = 1013;
             info.Item2.Y = 543;
 
-            imgAnalyzer.ProcessImage(info.Item1, info.Item2,  ImageProcessing.Cursor);
+            imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Cursor);
+        }
+
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+            ConfigPath = textBox1.Text;
         }
     }
 }

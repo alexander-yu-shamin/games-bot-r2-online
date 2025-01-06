@@ -176,6 +176,13 @@ namespace Interceptor
             SendKey(key, KeyState.Up);
         }
 
+        public void SendKeyWithDelay(Keys key, int delay)
+        {
+            SendKey(key, KeyState.Down);
+            Thread.Sleep(delay);
+            SendKey(key, KeyState.Up);
+        }
+
         public void SendKeys(params Keys[] keys)
         {
             foreach (Keys key in keys)
@@ -394,6 +401,16 @@ namespace Interceptor
             SendMouseEvent(MouseState.RightUp);
             Thread.Sleep(30);
             SendMouseEvent(MouseState.LeftUp);
+        }
+        public void SendRightLeftClick(int delay)
+        {
+            SendMouseEvent(MouseState.RightDown);
+            Thread.Sleep(30);
+            SendMouseEvent(MouseState.LeftDown);
+            Thread.Sleep(delay);
+            SendMouseEvent(MouseState.LeftUp);
+            Thread.Sleep(30);
+            SendMouseEvent(MouseState.RightUp);
         }
 
         public void ScrollMouse(ScrollDirection direction)
