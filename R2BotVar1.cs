@@ -192,6 +192,7 @@ namespace R2Bot
                             }
                             if (result)
                             {
+                                FiredAttackSkills();
                                 CurrentState = State.Take;
                             }
                             else
@@ -283,6 +284,14 @@ namespace R2Bot
             ProcessSkills(Config.AttackSkills, false, false); 
         }
 
+        private void FiredAttackSkills()
+        {
+            foreach(var skill in Config.AttackSkills)
+            {
+                skill.Timestamp = null;
+            }
+        }
+
         private void ProcessBuffs()
         {
             ProcessSkills(Config.BuffSkills, true, true); 
@@ -292,6 +301,7 @@ namespace R2Bot
         {
             if(Config.IsLuringEnabled)
             {
+                Input.SendKey(Interceptor.Keys.E);
                 ProcessSkills(Config.LuringSkills, true, true); 
             }
         }
@@ -330,7 +340,7 @@ namespace R2Bot
                         Input.SendKey(skill.Key);
                         if(shouldWaitAfterUse)
                         {
-                            Thread.Sleep(2500);
+                            Thread.Sleep(2750);
                         }
                         continue;
                     }
@@ -414,6 +424,7 @@ namespace R2Bot
 
                 step_x = -step_x;
                 step_y = -step_y;
+                ProcessLurings();
             }
             Debug("Search Finished!");
             return false;
@@ -569,7 +580,7 @@ namespace R2Bot
         }
 
 
-        [Conditional("DEBUG")]
+        [Conditional("DEBUG_NO")]
         public void Debug(string message, params object[] args)
         {
             Console.WriteLine(string.Format(message, args));

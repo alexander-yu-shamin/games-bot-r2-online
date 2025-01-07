@@ -190,13 +190,13 @@ namespace R2Bot
         {
             var botConfig = new BotConfiguration();
 
-            botConfig.HpKey = Interceptor.Keys.Q;
+            botConfig.HpKey = Interceptor.Keys.F1;
             botConfig.HpThreshold = 0.6;
             botConfig.HpSkillThreshold = 0.8;
 
             botConfig.ManaThreshold = 0.4;
 
-            botConfig.TpKey = Interceptor.Keys.Eight;
+            botConfig.TpKey = Interceptor.Keys.Q;
             botConfig.TpThreshold = 0.4;
 
             // Attack
@@ -226,7 +226,7 @@ namespace R2Bot
             // Master
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
-                Key = Interceptor.Keys.F1,
+                Key = Interceptor.Keys.F2,
                 SkillType = BotConfiguration.SkillType.Buff,
                 Delay = new TimeSpan(0, 0, 9, 0),
             });
@@ -234,7 +234,7 @@ namespace R2Bot
             // Speed
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
-                Key = Interceptor.Keys.F2,
+                Key = Interceptor.Keys.F3,
                 SkillType = BotConfiguration.SkillType.Buff,
                 Delay = new TimeSpan(0, 0, 9, 0),
             });
