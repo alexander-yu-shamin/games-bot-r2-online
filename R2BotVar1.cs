@@ -44,6 +44,7 @@ namespace R2Bot
         public double ManaThreshold { get; set; }
         public int NumberFailedSearchBeforeMove { get; set; } = 7;
         public bool IsLuringEnabled { get; set; } = true;
+        public bool IsTakeEnabled { get; set; } = true;
 
         public List<Skill> AllSkills { get; set; } = new List<Skill>();
     }
@@ -75,6 +76,7 @@ namespace R2Bot
             HpSkillThreshold = config.HpSkillThreshold;
             NumberFailedSearchBeforeMove = config.NumberFailedSearchBeforeMove;
             IsLuringEnabled = config.IsLuringEnabled;
+            IsTakeEnabled = config.IsTakeEnabled;
 
             AllSkills = config.AllSkills;
 
@@ -301,7 +303,10 @@ namespace R2Bot
         {
             if(Config.IsLuringEnabled)
             {
-                Input.SendKey(Interceptor.Keys.E);
+                if(Config.IsTakeEnabled)
+                {
+                    Input.SendKey(Interceptor.Keys.E);
+                }
                 ProcessSkills(Config.LuringSkills, true, true); 
             }
         }
@@ -571,11 +576,14 @@ namespace R2Bot
 
         private void Take()
         {
-            for(var i = 0; i< 6; i++)
+            if(Config.IsTakeEnabled)
             {
-                Debug("Take");
-                Input.SendKey(Interceptor.Keys.E);
-                Thread.Sleep(800);
+                for(var i = 0; i< 6; i++)
+                {
+                    Debug("Take");
+                    Input.SendKey(Interceptor.Keys.E);
+                    Thread.Sleep(800);
+                }
             }
         }
 
