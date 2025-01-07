@@ -1,4 +1,5 @@
-﻿using Interceptor;
+﻿#define DEBUG_STOPWATCH
+using Interceptor;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -16,9 +17,19 @@ namespace R2Bot
 
     internal class BotConfiguration
     {
+
+        public enum SkillType 
+        {
+            Attack,
+            HP,
+            Buff,
+            Luring,
+            Special
+        }
         public class Skill
         {
-            public bool IsAttackSkill { get; set; }
+            public SkillType SkillType{ get; set; }
+            public bool IsHpSkill { get; set; }
             public Interceptor.Keys Key { get; set; }
             public TimeSpan Delay { get; set; }
             public DateTime? Timestamp { get; set; } = null;
@@ -29,10 +40,12 @@ namespace R2Bot
         public double TpThreshold { get; set; }
         public Interceptor.Keys HpKey { get; set; }
         public double HpThreshold { get; set; }
-
+        public double HpSkillThreshold{ get; set; }
         public double ManaThreshold { get; set; }
+        public int NumberFailedSearchBeforeMove { get; set; } = 7;
+        public bool IsLuringEnabled { get; set; } = true;
 
-        public List<Skill> AllSkills { get; } = new List<Skill>();
+        public List<Skill> AllSkills { get; set; } = new List<Skill>();
     }
 
     internal class BotInternalConfiguration : BotConfiguration
@@ -41,34 +54,44 @@ namespace R2Bot
         {
             Health = new Skill()
             {
-                IsAttackSkill = false,
+                SkillType = SkillType.Special,
                 Key = config.HpKey,
                 Threshold = config.HpThreshold
             };
 
             Mana = new Skill()
             {
-                IsAttackSkill = false,
+                SkillType = SkillType.Special,
                 Threshold = config.ManaThreshold
             };
 
             Tp = new Skill()
             {
-                IsAttackSkill = false,
+                SkillType = SkillType.Special,
                 Key = config.TpKey,
                 Threshold = config.TpThreshold
             };
 
-            AttackSkill = AllSkills.Where(e => e.IsAttackSkill).ToList();
-            NotAttackSkill = AllSkills.Where(e => !e.IsAttackSkill).ToList();
+            HpSkillThreshold = config.HpSkillThreshold;
+            NumberFailedSearchBeforeMove = config.NumberFailedSearchBeforeMove;
+            IsLuringEnabled = config.IsLuringEnabled;
+
+            AllSkills = config.AllSkills;
+
+            AttackSkills = AllSkills.Where(e => e.SkillType == SkillType.Attack).ToList();
+            BuffSkills = AllSkills.Where(e => e.SkillType == SkillType.Buff).ToList();
+            LuringSkills = AllSkills.Where(e => e.SkillType == SkillType.Luring).ToList();
+            HPSkills = AllSkills.Where(e => e.SkillType == SkillType.HP).ToList();
         }
 
         public Skill Health { get; }
         public Skill Mana { get; }
         public Skill Tp { get; }
 
-        public List<Skill> AttackSkill { get; }
-        public List<Skill> NotAttackSkill { get; }
+        public List<Skill> AttackSkills { get; }
+        public List<Skill> HPSkills { get; }
+        public List<Skill> BuffSkills { get; }
+        public List<Skill> LuringSkills { get; }
     }
 
     internal class R2BotVar1
@@ -86,6 +109,7 @@ namespace R2Bot
             TP,
             Skills,
             Move,
+            Luring,
             Exit
         }
 
@@ -93,15 +117,22 @@ namespace R2Bot
         private Input Input { get; }
         private ImageAnalyzer ImageAnalyzer { get; } = new ImageAnalyzer();
         private BotInternalConfiguration Config { get; set; }
+        private DateTime StartTime { get; set; }
+        private Action<string> Logger { get; set; }
+        private ImageDescription Result { get; set; }
 
-        public R2BotVar1(Input input)
+        public R2BotVar1(Input input, Action<string> logger)
         {
             Input = input;
+            //Logger = logger;
         }
 
         public void Start(BotConfiguration config)
         {
             Debug("Bot started");
+            ExitFlag = false;
+            CurrentState = State.None;
+            StartTime = DateTime.Now;
             Config = new BotInternalConfiguration(config);
             MainThread = new Thread(Run);
             MainThread.Start();
@@ -122,33 +153,44 @@ namespace R2Bot
                 {
                     case State.None:
                         {
+                            Debug("State: None");
                             CurrentState = State.Search;
                             break;
                         }
 
                     case State.Search:
                         {
-                            Debug("Search");
+                            Debug("State: Search");
                             if (Search())
                             {
-                                NumberOfFailedSearch++;
+                                Debug($"Searched success!"); 
+                                NumberOfFailedSearch = 0;
                             }
                             else
                             {
-                                NumberOfFailedSearch = 0;
+                                Debug($"Searched failed {NumberOfFailedSearch}");
+                                NumberOfFailedSearch++;
+                                ProcessBuffs();
+                                ProcessLurings();
                             }
 
-                            if (NumberOfFailedSearch > 10)
+                            if (NumberOfFailedSearch > Config.NumberFailedSearchBeforeMove)
                             {
                                 CurrentState = State.Move;
+                                NumberOfFailedSearch = 0;
                             }
                             break;
                         }
 
                     case State.Kill:
                         {
-                            Debug("Kill monster");
-                            if (KillMonster())
+                            Debug("State: Kill");
+                            var result = KillMonster();
+                            if(ExitFlag)
+                            {
+                                CurrentState = State.Exit;
+                            }
+                            if (result)
                             {
                                 CurrentState = State.Take;
                             }
@@ -161,6 +203,7 @@ namespace R2Bot
 
                     case State.Take:
                         {
+                            Debug("State: Take");
                             Take();
                             CurrentState = State.Skills;
                             break;
@@ -168,9 +211,23 @@ namespace R2Bot
 
                     case State.TP:
                     {
-                        for (int i = 0; i < 3; i++)
+                        Debug("State: TP");
+
+                        if(DateTime.Now - StartTime <  TimeSpan.FromSeconds(20))
                         {
-                            Input.SendKey(Config.Tp.Key);
+                            Logger?.Invoke($"Something went wrong; Health: {Result?.Health};");
+                        }
+                        else
+                        {
+                            var info = ImageAnalyzer.CaptureScreen();
+                            var filename = DateTime.Now.ToString("yy-MM-dd-hh-mm");
+                            ImageAnalyzer.SaveImage(info.Item1, info.Item2, filename);
+                            for (int i = 0; i < 5; i++)
+                            {
+                                Input.SendKey(Config.Tp.Key);
+                                Thread.Sleep(250);
+                            }
+                            Logger?.Invoke($"The Bot TP. Started: {StartTime.ToString()}; Worked: {(DateTime.Now - StartTime).ToString()}");
                         }
                         Exit();
                         CurrentState = State.Exit;
@@ -179,26 +236,41 @@ namespace R2Bot
 
                     case State.Skills:
                     {
-                        ProcessSkills();
-                        CurrentState = State.Search;
+                        Debug("State: Skills");
+                        ProcessBuffs();
+                        CurrentState = State.Luring;
                         break;
                     }
 
                     case State.Wait:
                     {
+                        Debug("State: Wait");
                         break;
                     }
 
                     case State.Move:
                     {
+                        Debug("State: Move");
                         Move();
                         CurrentState = State.Search;
                         break;
                     }
+                    case State.Luring:
+                        {
+                            if(Config.IsLuringEnabled)
+                            {
+                                ProcessLurings();
+                            }
+
+                            CurrentState = State.Search;
+
+                            break;
+                        }
 
                     case State.Exit:
                     default: 
                         {
+                            Debug("State: Exit, default");
                             return;
                         }
                 }
@@ -207,33 +279,76 @@ namespace R2Bot
 
         private void Move()
         {
-            Input.SendKeyWithDelay(Keys.D, 250);
-        }
-
-        private void ProcessSkills()
-        {
-            foreach (var skill in Config.NotAttackSkill)
-            {
-                if (skill.Timestamp == null)
-                {
-                    skill.Timestamp = DateTime.Now;
-                    continue;
-                }
-
-                if (DateTime.Now - skill.Timestamp >= skill.Delay)
-                {
-                    Input.SendKey(skill.Key);
-                    skill.Timestamp = DateTime.Now;
-                    Thread.Sleep(500);
-                }
-            }
+            Input.SendKeyWithDelay(Keys.D, 800);
         }
 
         private void ProcessAttackSkills()
         {
-
+            ProcessSkills(Config.AttackSkills, false, false); 
         }
 
+        private void ProcessBuffs()
+        {
+            ProcessSkills(Config.BuffSkills, true, true); 
+        }
+
+        private void ProcessLurings()
+        {
+            ProcessSkills(Config.LuringSkills, true, true); 
+        }
+
+        private bool ProcessHP()
+        {
+            var anyCanBeCalled = Config.HPSkills.Any(el =>
+            {
+                if (el.Timestamp != null)
+                {
+                    return DateTime.Now - el.Timestamp >= el.Delay;
+
+                }
+                return true;
+            });
+
+            if(anyCanBeCalled)
+            {
+                ProcessSkills(Config.HPSkills, true, false);
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+
+        private void ProcessSkills(List<BotConfiguration.Skill> skills, bool shouldBeInit, bool shouldWaitAfterUse)
+        {
+            foreach(var skill in skills) 
+            {
+                if(skill.Timestamp == null)
+                {
+                    skill.Timestamp = DateTime.Now;
+                    if(shouldBeInit)
+                    {
+                        Input.SendKey(skill.Key);
+                        if(shouldWaitAfterUse)
+                        {
+                            Thread.Sleep(2500);
+                        }
+                        continue;
+                    }
+                }
+
+                if(DateTime.Now - skill.Timestamp >= skill.Delay)
+                {
+                    skill.Timestamp = DateTime.Now;
+                    Input.SendKey(skill.Key);
+                    if(shouldWaitAfterUse)
+                    {
+                        Thread.Sleep(2500);
+                    }
+                }
+            }
+
+        }
         private bool Search()
         {
             var max = 65536;
@@ -256,6 +371,7 @@ namespace R2Bot
             var step_y = max_y / steps;
             var speed = 64;
 
+            Debug("Search started!");
             for (var i = 0; i < 20; i++)
             {
                 if(ExitFlag)
@@ -300,14 +416,30 @@ namespace R2Bot
                 step_x = -step_x;
                 step_y = -step_y;
             }
+            Debug("Search Finished!");
             return false;
         }
 
         private ImageDescription ProcessImage(ImageProcessing flag)
         {
-            var info = ImageAnalyzer.CaptureScreen();
-            var result = ImageAnalyzer.ProcessImage(info.Item1, info.Item2, flag | ImageProcessing.Mana | ImageProcessing.Health);
+#if DEBUG_STOPWATCH
+            var stopwatchScreen = Stopwatch.StartNew();
+#endif
+        var info = ImageAnalyzer.CaptureScreen();
+#if DEBUG_STOPWATCH
+            stopwatchScreen.Stop();
+            Debug($"ProcessImage: CaptureScreen: {stopwatchScreen.ElapsedMilliseconds}; {stopwatchScreen.ElapsedTicks}");
+#endif
 
+#if DEBUG_STOPWATCH
+            var stopwatchProcess = Stopwatch.StartNew();
+#endif
+            var result = ImageAnalyzer.ProcessImage(info.Item1, info.Item2, flag | ImageProcessing.Mana | ImageProcessing.Health);
+            Result = result;
+#if DEBUG_STOPWATCH
+            stopwatchProcess.Stop();
+            Debug($"ProcessImage: ProcessImage: {stopwatchProcess.ElapsedMilliseconds}; {stopwatchProcess.ElapsedTicks}");
+#endif
 
             return result;
         }
@@ -316,15 +448,26 @@ namespace R2Bot
         {
             if (result.IsImageProcessed)
             {
-                if (result.Health <= Config.TpThreshold)
+                if (result.Health <= Config.Tp.Threshold)
                 {
+                    Debug($"TP = {result.Health} <= {Config.Tp.Threshold}");
                     CurrentState = State.TP;
                     return true;
                 }
 
-                if (result.Health < Config.HpThreshold)
+                if(result.Health <= Config.HpSkillThreshold)
                 {
-                    Input.SendKey(Config.HpKey);
+                    Debug($"Health Skill = {result.Health} <= {Config.HpSkillThreshold}");
+                    ProcessHP();
+                }
+
+                if (result.Health < Config.Health.Threshold)
+                {
+                    Debug($"Health = {result.Health} <= {Config.Health.Threshold}");
+                    if(!ProcessHP())
+                    {
+                        Input.SendKey(Config.Health.Key);
+                    }
                 }
             }
 
@@ -333,8 +476,16 @@ namespace R2Bot
 
         private bool FindMonster()
         {
+#if DEBUG_STOPWATCH
+            var stopwatch = Stopwatch.StartNew();
+#endif
+
             var result = ProcessImage(ImageProcessing.Cursor);
 
+#if DEBUG_STOPWATCH
+            stopwatch.Stop();
+            Debug($"FindMonster: {stopwatch.ElapsedMilliseconds}; {stopwatch.ElapsedTicks}");
+#endif
             if (!result.IsImageProcessed)
             {
                 Debug("Image isn't processed");
@@ -356,17 +507,20 @@ namespace R2Bot
                 {
                     if (result.AttackObjectName.Contains("Тотем жизни"))
                     {
+                        Debug("Тотем жизни!");
                         Input.SendRightLeftClick(250);
                         return false;
                     }
                     else
                     {
+                        Debug("Не Тотем жизни!");
                         CurrentState = State.Kill;
                         return true;
                     }
                 }
                 else
                 {
+                    Debug("Find monster kill!");
                     CurrentState = State.Kill;
                     return true;
                 }
@@ -383,16 +537,21 @@ namespace R2Bot
         private bool KillMonster()
         {
             var popupOpen = true;
-            Input.SendKey(Interceptor.Keys.One);
 
             do
             {
+                if(ExitFlag)
+                {
+                    return true;
+                }
+
                 var result = ProcessImage(ImageProcessing.AttackWindow);
                 if (Routine(result))
                 {
                     return false;
                 }
 
+                ProcessAttackSkills();
                 popupOpen = result.IsAttackWindowOpen;
             }
             while (popupOpen);
@@ -402,10 +561,11 @@ namespace R2Bot
 
         private void Take()
         {
-            for(var i = 0; i< 5; i++)
+            for(var i = 0; i< 6; i++)
             {
+                Debug("Take");
                 Input.SendKey(Interceptor.Keys.E);
-                Thread.Sleep(250);
+                Thread.Sleep(800);
             }
         }
 

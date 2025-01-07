@@ -1,4 +1,4 @@
-﻿//#define IMGUI_DEBUG_WINDOW
+﻿#define IMGUI_DEBUG_WINDOW
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -400,6 +400,7 @@ namespace R2Bot
                 }
             }
         }
+
         public static (Bitmap, Point) CaptureScreen()
         {
             Bitmap result = new Bitmap(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height, PixelFormat.Format24bppRgb);
@@ -443,7 +444,7 @@ namespace R2Bot
             return MathF.Abs(one - two) < epsilon;
         }
 
-        [Conditional("DEBUG")]
+        [Conditional("DEBUG_NO")]
         public void Debug(string message, params object[] args)
         {
             Console.WriteLine(string.Format(message, args));

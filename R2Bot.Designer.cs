@@ -29,12 +29,13 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
-            var resources = new System.ComponentModel.ComponentResourceManager(typeof(R2Bot));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(R2Bot));
             trayIcon = new NotifyIcon(components);
             label1 = new Label();
             WorkingLabel = new Label();
-            textBox1 = new TextBox();
             label2 = new Label();
+            LogBox = new TextBox();
+            comboBox1 = new ComboBox();
             SuspendLayout();
             // 
             // trayIcon
@@ -47,46 +48,59 @@
             // 
             label1.AutoSize = true;
             label1.Font = new Font("Segoe UI", 14.25F);
-            label1.Location = new Point(12, 9);
+            label1.Location = new Point(14, 12);
             label1.Name = "label1";
-            label1.Size = new Size(253, 25);
+            label1.Size = new Size(248, 32);
+            label1.TabIndex = 3;
             label1.Text = "Alt+F12 => Start/Stop";
             // 
             // WorkingLabel
             // 
             WorkingLabel.AutoSize = true;
             WorkingLabel.Font = new Font("Segoe UI", 14.25F);
-            WorkingLabel.Location = new Point(368, 9);
+            WorkingLabel.Location = new Point(421, 12);
             WorkingLabel.Name = "WorkingLabel";
-            WorkingLabel.Size = new Size(140, 25);
+            WorkingLabel.Size = new Size(177, 32);
+            WorkingLabel.TabIndex = 2;
             WorkingLabel.Text = "NOT WORKING";
-            // 
-            // textBox1
-            // 
-            textBox1.Location = new Point(91, 54);
-            textBox1.Name = "textBox1";
-            textBox1.Text = ConfigPath;
-            textBox1.Size = new Size(235, 23);
-            textBox1.TextChanged += textBox1_TextChanged;
             // 
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(12, 57);
+            label2.Location = new Point(14, 76);
             label2.Name = "label2";
-            label2.Size = new Size(73, 15);
+            label2.Size = new Size(88, 20);
+            label2.TabIndex = 0;
             label2.Text = "Config Path:";
+            // 
+            // LogBox
+            // 
+            LogBox.Enabled = false;
+            LogBox.Location = new Point(14, 118);
+            LogBox.Name = "LogBox";
+            LogBox.Size = new Size(575, 27);
+            LogBox.TabIndex = 4;
+            // 
+            // comboBox1
+            // 
+            comboBox1.FormattingEnabled = true;
+            comboBox1.Location = new Point(111, 68);
+            comboBox1.Name = "comboBox1";
+            comboBox1.Size = new Size(478, 28);
+            comboBox1.TabIndex = 5;
             // 
             // R2Bot
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(526, 102);
+            ClientSize = new Size(601, 166);
+            Controls.Add(comboBox1);
+            Controls.Add(LogBox);
             Controls.Add(label2);
-            Controls.Add(textBox1);
             Controls.Add(WorkingLabel);
             Controls.Add(label1);
             Icon = (Icon)resources.GetObject("$this.Icon");
+            Margin = new Padding(3, 4, 3, 4);
             Name = "R2Bot";
             Text = "R2Bot";
             Load += R2Bot_Load;
@@ -99,7 +113,8 @@
         private NotifyIcon trayIcon;
         private Label label1;
         private Label WorkingLabel;
-        private TextBox textBox1;
         private Label label2;
+        private TextBox LogBox;
+        private ComboBox comboBox1;
     }
 }

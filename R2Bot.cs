@@ -1,4 +1,4 @@
-
+#define DEBUG_STOPWATCH
 using System.CodeDom.Compiler;
 using Interceptor;
 using System.Diagnostics;
@@ -11,6 +11,7 @@ using Emgu.CV.OCR;
 using Emgu.CV.Structure;
 using Newtonsoft.Json;
 using Keys = System.Windows.Forms.Keys;
+using Newtonsoft.Json.Converters;
 
 namespace R2Bot
 {
@@ -19,10 +20,15 @@ namespace R2Bot
         private KeyboardHook KeyboardHook { get; } = new KeyboardHook();
         private bool IsWorking { get; set; } = false;
         private Input Input { get; set; }
-        private string DefaultConfigPath { get; set; } = "default_config.json";
-        private string ConfigPath { get; set; } = "bot_config.json";
+        private string DefaultConfigPath { get; set; } = "default.config.json";
+        private string ConfigPath { get; set; } = "bot.config.json";
 
         private R2BotVar1 R2BotVar1 { get; set; }
+        private JsonSerializerSettings JsonSettings = new JsonSerializerSettings
+        {
+            Formatting = Formatting.Indented,
+            Converters = new[] { new StringEnumConverter() }
+        };
 
         public R2Bot()
         {
@@ -31,8 +37,42 @@ namespace R2Bot
             InitializeDriverImitator();
             InitializeBot(Input);
             WorkingLabel.Text = "NOT WORKING";
-        }
 
+            if (!File.Exists(ConfigPath))
+            {
+                BotConfiguration config = DefaultBotConfig();
+                if (!File.Exists(DefaultConfigPath))
+                {
+                    var json = JsonConvert.SerializeObject(config, Formatting.Indented, JsonSettings);
+                    File.WriteAllText(DefaultConfigPath, json);
+                    File.WriteAllText(ConfigPath, json);
+                }
+                else
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(DefaultConfigPath);
+                        config = JsonConvert.DeserializeObject<BotConfiguration>(json, JsonSettings);
+                        File.WriteAllText(ConfigPath, json);
+                    }
+                    catch (Exception exception)
+                    {
+                        Logger(exception.Message);
+                    }
+                }
+            }
+            var files = Directory.GetFiles(".\\","*.config.json", SearchOption.TopDirectoryOnly);
+            if(files.Length != 0 )
+            {
+                foreach(var file in files)
+                {
+                    comboBox1.Items.Add(file);
+                }
+                comboBox1.SelectedIndex = 0;
+            }
+
+            Logger("Choose config; Go to the Game; Activate bot; Enjoy!");
+        }
 
         private enum TypeSkill
         {
@@ -58,13 +98,16 @@ namespace R2Bot
             Input = new Input();
             Input.KeyboardFilterMode = KeyboardFilterMode.All;
             var loaded = Input.Load();
-            Console.WriteLine($"Initialize Input {loaded}");
         }
 
         private void InitializeBot(Input input)
         {
-            R2BotVar1 = new R2BotVar1(input);
-            Console.WriteLine($"Initialize bot");
+            R2BotVar1 = new R2BotVar1(input, Logger);
+        }
+
+        private void Logger(string message)
+        {
+            LogBox.Text = message;
         }
 
         private void InitializeKeyboardHooks()
@@ -79,21 +122,21 @@ namespace R2Bot
         void KeyboardHook_KeyPressed(object sender, KeyPressedEventArgs e)
         {
             var defaultModifier = global::R2Bot.ModifierKeys.Alt;
-            if(e.Modifier == defaultModifier)
+            if (e.Modifier == defaultModifier)
             {
-                if(e.Key == System.Windows.Forms.Keys.F12)
+                if (e.Key == System.Windows.Forms.Keys.F12)
                 {
                     IsWorking = !IsWorking;
                     WorkingLabel.Text = IsWorking ? "WORKING" : "NOT WORKING";
                     Bot(IsWorking);
                 }
 
-                if(e.Key == Keys.F11)
+                if (e.Key == Keys.F11)
                 {
                     Testing();
                 }
 
-                if(e.Key == Keys.F10)
+                if (e.Key == Keys.F10)
                 {
                     SaveImage();
                 }
@@ -106,7 +149,7 @@ namespace R2Bot
 
         private void R2Bot_Resize(object sender, EventArgs e)
         {
-            if(this.WindowState == FormWindowState.Minimized)
+            if (this.WindowState == FormWindowState.Minimized)
             {
                 this.Hide();
                 this.trayIcon.Visible = false;
@@ -115,7 +158,7 @@ namespace R2Bot
 
         private void trayIcon_MouseDoubleClick(object sender, MouseEventArgs e)
         {
-            if(this.WindowState == FormWindowState.Minimized)
+            if (this.WindowState == FormWindowState.Minimized)
             {
                 this.WindowState = FormWindowState.Normal;
                 this.Activate();
@@ -126,36 +169,14 @@ namespace R2Bot
         private BotConfiguration ReadBotConfig()
         {
             BotConfiguration config = DefaultBotConfig();
-            if(!File.Exists(ConfigPath))
-            {
-                if(!File.Exists(DefaultConfigPath))
-                {
-                    var json = JsonConvert.SerializeObject(config);
-                    File.WriteAllText(DefaultConfigPath, json);
-                    File.WriteAllText(ConfigPath, json);
-                }
-                else
-                {
-                    try
-                    {
-                        var json = File.ReadAllText(DefaultConfigPath);
-                        config = JsonConvert.DeserializeObject<BotConfiguration>(json);
-                        File.WriteAllText(ConfigPath, json);
-                    }
-                    catch(Exception exception)
-                    {
-                        Console.WriteLine($"Something went wrong {exception.Message}");
-                        return DefaultBotConfig();
-                    }
-                }
-            }
+            var path = (string)comboBox1.Items[comboBox1.SelectedIndex];
 
             try
             {
-                var json = File.ReadAllText(ConfigPath);
-                config = JsonConvert.DeserializeObject<BotConfiguration>(json);
+                var json = File.ReadAllText(path);
+                config = JsonConvert.DeserializeObject<BotConfiguration>(json, JsonSettings);
             }
-            catch(Exception exception)
+            catch (Exception exception)
             {
                 Console.WriteLine($"Something went wrong {exception.Message}");
                 return DefaultBotConfig();
@@ -170,24 +191,26 @@ namespace R2Bot
 
             botConfig.HpKey = Interceptor.Keys.Q;
             botConfig.HpThreshold = 0.6;
+            botConfig.HpSkillThreshold = 0.8;
 
-            botConfig.ManaThreshold = 0.3;
+            botConfig.ManaThreshold = 0.4;
 
             botConfig.TpKey = Interceptor.Keys.Eight;
-            botConfig.TpThreshold = 0.2;
+            botConfig.TpThreshold = 0.4;
 
             // Attack
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
                 Key = Interceptor.Keys.One,
-                IsAttackSkill = true,
+                SkillType = BotConfiguration.SkillType.Attack,
+                Delay = new TimeSpan(0, 0, 0, 7)
             });
 
             // Ogon
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
                 Key = Interceptor.Keys.Three,
-                IsAttackSkill = false,
+                SkillType = BotConfiguration.SkillType.Luring,
                 Delay = new TimeSpan(0, 0, 0, 35),
             });
 
@@ -195,7 +218,7 @@ namespace R2Bot
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
                 Key = Interceptor.Keys.Four,
-                IsAttackSkill = false,
+                SkillType = BotConfiguration.SkillType.HP,
                 Delay = new TimeSpan(0, 0, 3, 0),
             });
 
@@ -203,7 +226,7 @@ namespace R2Bot
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
                 Key = Interceptor.Keys.F1,
-                IsAttackSkill = false,
+                SkillType = BotConfiguration.SkillType.Buff,
                 Delay = new TimeSpan(0, 0, 9, 0),
             });
 
@@ -211,8 +234,16 @@ namespace R2Bot
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
                 Key = Interceptor.Keys.F2,
-                IsAttackSkill = false,
+                SkillType = BotConfiguration.SkillType.Buff,
                 Delay = new TimeSpan(0, 0, 9, 0),
+            });
+
+            // Morf
+            botConfig.AllSkills.Add(new BotConfiguration.Skill
+            {
+                Key = Interceptor.Keys.F4,
+                SkillType = BotConfiguration.SkillType.Buff,
+                Delay = new TimeSpan(0, 2, 0, 0),
             });
 
             return botConfig;
@@ -221,13 +252,15 @@ namespace R2Bot
         private void Bot(bool start)
         {
             Console.WriteLine($"Bot start = {start}");
-            if(start)
+            if (start)
             {
+                Logger("The user started execution.");
                 var config = ReadBotConfig();
                 R2BotVar1.Start(config);
             }
             else
             {
+                Logger("The user stopped execution.");
                 R2BotVar1.Exit();
             }
         }
@@ -241,7 +274,7 @@ namespace R2Bot
                 ImageAnalyzer.SaveImage(info.Item1, info.Item2, filename);
                 Console.WriteLine($"Saved capture screen image to {filename}");
             }
-            catch(Exception exception)
+            catch (Exception exception)
             {
                 Console.WriteLine($"Cannot save file. Exception = {exception.Message}");
             }
@@ -251,16 +284,16 @@ namespace R2Bot
         {
             Console.WriteLine($"Testing...");
             ImageAnalyzer imgAnalyzer = new ImageAnalyzer();
-            var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "25-01-05-10-47_x=1013_y=543.png"); // no_attack
-            info.Item2.X = 1013;
-            info.Item2.Y = 543;
+            var stopwatch = Stopwatch.StartNew();
+            var info = ImageAnalyzer.CaptureScreen();
+            stopwatch.Stop();
+            Console.WriteLine($"stopwatch {stopwatch.ElapsedMilliseconds}; {stopwatch.ElapsedTicks}"); 
+
+            //var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "25-01-05-10-47_x=1013_y=543.png"); // no_attack
+            //info.Item2.X = 1013;
+            //info.Item2.Y = 543;
 
             imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Cursor);
-        }
-
-        private void textBox1_TextChanged(object sender, EventArgs e)
-        {
-            ConfigPath = textBox1.Text;
         }
     }
 }
