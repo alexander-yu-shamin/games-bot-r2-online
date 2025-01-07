@@ -1,4 +1,4 @@
-﻿#define DEBUG_STOPWATCH
+﻿//#define DEBUG_STOPWATCH
 using Interceptor;
 using System;
 using System.Collections.Generic;

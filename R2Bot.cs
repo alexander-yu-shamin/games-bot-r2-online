@@ -22,6 +22,7 @@ namespace R2Bot
         private Input Input { get; set; }
         private string DefaultConfigPath { get; set; } = "default.config.json";
         private string ConfigPath { get; set; } = "bot.config.json";
+        static AutoResetEvent LoggerStringEvent = new AutoResetEvent(false);
 
         private R2BotVar1 R2BotVar1 { get; set; }
         private JsonSerializerSettings JsonSettings = new JsonSerializerSettings
@@ -282,18 +283,18 @@ namespace R2Bot
 
         private void Testing()
         {
-            Console.WriteLine($"Testing...");
-            ImageAnalyzer imgAnalyzer = new ImageAnalyzer();
-            var stopwatch = Stopwatch.StartNew();
-            var info = ImageAnalyzer.CaptureScreen();
-            stopwatch.Stop();
-            Console.WriteLine($"stopwatch {stopwatch.ElapsedMilliseconds}; {stopwatch.ElapsedTicks}"); 
+            //Console.WriteLine($"Testing...");
+            //ImageAnalyzer imgAnalyzer = new ImageAnalyzer();
+            //var stopwatch = Stopwatch.StartNew();
+            //var info = ImageAnalyzer.CaptureScreen();
+            //stopwatch.Stop();
+            //Console.WriteLine($"stopwatch {stopwatch.ElapsedMilliseconds}; {stopwatch.ElapsedTicks}"); 
 
-            //var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "25-01-05-10-47_x=1013_y=543.png"); // no_attack
-            //info.Item2.X = 1013;
-            //info.Item2.Y = 543;
+            ////var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "25-01-05-10-47_x=1013_y=543.png"); // no_attack
+            ////info.Item2.X = 1013;
+            ////info.Item2.Y = 543;
 
-            imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Cursor);
+            //imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Cursor);
         }
     }
 }
