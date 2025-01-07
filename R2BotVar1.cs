@@ -257,11 +257,7 @@ namespace R2Bot
                     }
                     case State.Luring:
                         {
-                            if(Config.IsLuringEnabled)
-                            {
-                                ProcessLurings();
-                            }
-
+                            ProcessLurings();
                             CurrentState = State.Search;
 
                             break;
@@ -294,7 +290,10 @@ namespace R2Bot
 
         private void ProcessLurings()
         {
-            ProcessSkills(Config.LuringSkills, true, true); 
+            if(Config.IsLuringEnabled)
+            {
+                ProcessSkills(Config.LuringSkills, true, true); 
+            }
         }
 
         private bool ProcessHP()
