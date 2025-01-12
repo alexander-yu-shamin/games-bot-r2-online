@@ -129,6 +129,11 @@ namespace R2Bot
             //Logger = logger;
         }
 
+        ~R2BotVar1()
+        {
+            
+        }
+
         public void Start(BotConfiguration config)
         {
             Debug("Bot started");

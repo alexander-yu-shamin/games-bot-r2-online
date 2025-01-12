@@ -103,6 +103,7 @@
             Margin = new Padding(3, 4, 3, 4);
             Name = "R2Bot";
             Text = "R2Bot";
+            FormClosed += R2Bot_FormClosed;
             Load += R2Bot_Load;
             ResumeLayout(false);
             PerformLayout();

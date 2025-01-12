@@ -62,10 +62,10 @@ namespace R2Bot
                     }
                 }
             }
-            var files = Directory.GetFiles(".\\","*.config.json", SearchOption.TopDirectoryOnly);
-            if(files.Length != 0 )
+            var files = Directory.GetFiles(".\\", "*.config.json", SearchOption.TopDirectoryOnly);
+            if (files.Length != 0)
             {
-                foreach(var file in files)
+                foreach (var file in files)
                 {
                     comboBox1.Items.Add(file);
                 }
@@ -98,7 +98,12 @@ namespace R2Bot
         {
             Input = new Input();
             Input.KeyboardFilterMode = KeyboardFilterMode.All;
+            Input.Unload();
             var loaded = Input.Load();
+            if (!loaded)
+            {
+                Logger("Input isn't loaded");
+            }
         }
 
         private void InitializeBot(Input input)
@@ -169,7 +174,7 @@ namespace R2Bot
 
         private BotConfiguration ReadBotConfig()
         {
-            BotConfiguration config = DefaultBotConfig();
+            BotConfiguration config = null;
             var path = (string)comboBox1.Items[comboBox1.SelectedIndex];
 
             try
@@ -180,7 +185,7 @@ namespace R2Bot
             catch (Exception exception)
             {
                 Console.WriteLine($"Something went wrong {exception.Message}");
-                return DefaultBotConfig();
+                return null;
             }
 
             return config;
@@ -257,6 +262,10 @@ namespace R2Bot
             {
                 Logger("The user started execution.");
                 var config = ReadBotConfig();
+                if (config == null)
+                {
+                    Logger("The config is bad. Will be used the default one");
+                }
                 R2BotVar1.Start(config);
             }
             else
@@ -283,6 +292,8 @@ namespace R2Bot
 
         private void Testing()
         {
+            Logger("Testing...");
+            Input.MoveMouseTo(1920 / 2, 1080 / 2);
             //Console.WriteLine($"Testing...");
             //ImageAnalyzer imgAnalyzer = new ImageAnalyzer();
             //var stopwatch = Stopwatch.StartNew();
@@ -295,6 +306,14 @@ namespace R2Bot
             ////info.Item2.Y = 543;
 
             //imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Cursor);
+        }
+
+        private void R2Bot_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            if(Input.IsLoaded)
+            {
+                Input.Unload();
+            }
         }
     }
 }

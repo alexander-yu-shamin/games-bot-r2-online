@@ -130,6 +130,11 @@ namespace R2Bot
             TakeImageBgra.SetValue(TakeColorBgra);
         }
 
+        ~ImageAnalyzer()
+        {
+            Tesseract?.Dispose();
+        }
+
         public ImageDescription ProcessImage(Bitmap bitmap, Point pointer, ImageProcessing task)
         {
             var result = new ImageDescription
