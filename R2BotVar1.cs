@@ -29,11 +29,11 @@ namespace R2Bot
         public class Skill
         {
             public SkillType SkillType{ get; set; }
-            public bool IsHpSkill { get; set; }
             public Interceptor.Keys Key { get; set; }
             public TimeSpan Delay { get; set; }
             public DateTime? Timestamp { get; set; } = null;
             public Double Threshold { get; set; }
+            public int ExecutionMs { get; set; }
         }
 
         public Interceptor.Keys TpKey { get; set; }
@@ -45,6 +45,9 @@ namespace R2Bot
         public int NumberFailedSearchBeforeMove { get; set; } = 7;
         public bool IsLuringEnabled { get; set; } = true;
         public bool IsTakeEnabled { get; set; } = true;
+        public bool MoveAfterEachKill { get; set; } = false;
+        public int RotateDelayMs { get; set; }
+        public TimeSpan MaxAttackTime { get; set; } = TimeSpan.FromMinutes(2);
 
         public List<Skill> AllSkills { get; set; } = new List<Skill>();
     }
@@ -77,6 +80,9 @@ namespace R2Bot
             NumberFailedSearchBeforeMove = config.NumberFailedSearchBeforeMove;
             IsLuringEnabled = config.IsLuringEnabled;
             IsTakeEnabled = config.IsTakeEnabled;
+            MoveAfterEachKill = config.MoveAfterEachKill;
+            RotateDelayMs = config.RotateDelayMs;
+            MaxAttackTime = config.MaxAttackTime;
 
             AllSkills = config.AllSkills;
 
@@ -246,7 +252,14 @@ namespace R2Bot
                     {
                         Debug("State: Skills");
                         ProcessBuffs();
-                        CurrentState = State.Luring;
+                        if (Config.MoveAfterEachKill)
+                        {
+                            CurrentState = State.Move;
+                        }
+                        else
+                        {
+                            CurrentState = State.Luring; 
+                        }
                         break;
                     }
 
@@ -260,7 +273,14 @@ namespace R2Bot
                     {
                         Debug("State: Move");
                         Move();
-                        CurrentState = State.Search;
+                        if (Config.MoveAfterEachKill)
+                        {
+                            CurrentState = State.Luring; 
+                        }
+                        else
+                        {
+                            CurrentState = State.Search;
+                        }
                         break;
                     }
                     case State.Luring:
@@ -283,7 +303,7 @@ namespace R2Bot
 
         private void Move()
         {
-            Input.SendKeyWithDelay(Keys.D, 800);
+            Input.SendKeyWithDelay(Keys.D, Config.RotateDelayMs);
         }
 
         private void ProcessAttackSkills()
@@ -350,7 +370,7 @@ namespace R2Bot
                         Input.SendKey(skill.Key);
                         if(shouldWaitAfterUse)
                         {
-                            Thread.Sleep(2750);
+                            Thread.Sleep(skill.ExecutionMs); //2750
                         }
                         continue;
                     }
@@ -362,7 +382,7 @@ namespace R2Bot
                     Input.SendKey(skill.Key);
                     if(shouldWaitAfterUse)
                     {
-                        Thread.Sleep(2500);
+                        Thread.Sleep(skill.ExecutionMs);
                     }
                 }
             }
@@ -557,9 +577,15 @@ namespace R2Bot
         private bool KillMonster()
         {
             var popupOpen = true;
+            var startTime = DateTime.Now;
 
             do
             {
+                if (DateTime.Now - startTime > Config.MaxAttackTime)
+                {
+                    return true;
+                }
+
                 if(ExitFlag)
                 {
                     return true;

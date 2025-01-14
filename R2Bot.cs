@@ -212,12 +212,22 @@ namespace R2Bot
                 Delay = new TimeSpan(0, 0, 0, 7)
             });
 
+            // Goblin
+            botConfig.AllSkills.Add(new BotConfiguration.Skill
+            {
+                Key = Interceptor.Keys.One,
+                SkillType = BotConfiguration.SkillType.Attack,
+                Delay = new TimeSpan(0, 0, 0, 7),
+                ExecutionMs = 1500
+            });
+
             // Ogon
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
                 Key = Interceptor.Keys.Three,
                 SkillType = BotConfiguration.SkillType.Luring,
                 Delay = new TimeSpan(0, 0, 0, 35),
+                ExecutionMs = 1500
             });
 
             // Totem
@@ -226,6 +236,7 @@ namespace R2Bot
                 Key = Interceptor.Keys.Four,
                 SkillType = BotConfiguration.SkillType.HP,
                 Delay = new TimeSpan(0, 0, 3, 0),
+                ExecutionMs = 1000
             });
 
             // Master
@@ -234,6 +245,7 @@ namespace R2Bot
                 Key = Interceptor.Keys.F2,
                 SkillType = BotConfiguration.SkillType.Buff,
                 Delay = new TimeSpan(0, 0, 9, 0),
+                ExecutionMs = 3000
             });
 
             // Speed
@@ -242,6 +254,7 @@ namespace R2Bot
                 Key = Interceptor.Keys.F3,
                 SkillType = BotConfiguration.SkillType.Buff,
                 Delay = new TimeSpan(0, 0, 9, 0),
+                ExecutionMs = 3000
             });
 
             // Morf
@@ -250,6 +263,25 @@ namespace R2Bot
                 Key = Interceptor.Keys.F4,
                 SkillType = BotConfiguration.SkillType.Buff,
                 Delay = new TimeSpan(0, 2, 0, 0),
+                ExecutionMs = 0
+            });
+
+            // Speed bank
+            botConfig.AllSkills.Add(new BotConfiguration.Skill
+            {
+                Key = Interceptor.Keys.F5,
+                SkillType = BotConfiguration.SkillType.Buff,
+                Delay = new TimeSpan(0, 0, 15, 0),
+                ExecutionMs = 0
+            });
+
+            // eat
+            botConfig.AllSkills.Add(new BotConfiguration.Skill
+            {
+                Key = Interceptor.Keys.F5,
+                SkillType = BotConfiguration.SkillType.Buff,
+                Delay = new TimeSpan(0, 0, 45, 0),
+                ExecutionMs = 0
             });
 
             return botConfig;
@@ -310,9 +342,16 @@ namespace R2Bot
 
         private void R2Bot_FormClosed(object sender, FormClosedEventArgs e)
         {
-            if(Input.IsLoaded)
+            try
             {
-                Input.Unload();
+                if (Input.IsLoaded)
+                {
+                    Input.Unload();
+                }
+            }
+            catch
+            {
+
             }
         }
     }
