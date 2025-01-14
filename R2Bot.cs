@@ -215,7 +215,7 @@ namespace R2Bot
             // Goblin
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
-                Key = Interceptor.Keys.One,
+                Key = Interceptor.Keys.Two,
                 SkillType = BotConfiguration.SkillType.Attack,
                 Delay = new TimeSpan(0, 0, 0, 7),
                 ExecutionMs = 1500
@@ -278,7 +278,7 @@ namespace R2Bot
             // eat
             botConfig.AllSkills.Add(new BotConfiguration.Skill
             {
-                Key = Interceptor.Keys.F5,
+                Key = Interceptor.Keys.F7,
                 SkillType = BotConfiguration.SkillType.Buff,
                 Delay = new TimeSpan(0, 0, 45, 0),
                 ExecutionMs = 0
