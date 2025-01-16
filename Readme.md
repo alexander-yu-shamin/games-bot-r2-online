@@ -7,6 +7,7 @@ The author is not responsible for any use of this product that falls outside the
 ## Using
 
 It is necessary to copy "DLL\interception.dll" to the built application.
+You should install "Driver/InstallDriver.bat"
 
 ## Compilation
 
