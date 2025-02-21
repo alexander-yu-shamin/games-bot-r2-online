@@ -12,7 +12,7 @@ The author is not responsible for any use of this product that falls outside the
 ## Using 
 Setup -> Run -> Enjoy
 
-![example](Docs/example.mp4)
+![example](Docs/example.gif)
 
 ## Compilation
 
