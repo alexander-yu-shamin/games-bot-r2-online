@@ -123,7 +123,7 @@ namespace R2Bot
 
         private State CurrentState { get; set; } = State.None;
         private Input Input { get; }
-        private ImageAnalyzer ImageAnalyzer { get; } = new ImageAnalyzer();
+        private ImageAnalyzer ImageAnalyzer { get; set; }
         private BotInternalConfiguration Config { get; set; }
         private DateTime StartTime { get; set; }
         private Action<string> Logger { get; set; }
@@ -132,7 +132,7 @@ namespace R2Bot
         public R2BotVar1(Input input, Action<string> logger)
         {
             Input = input;
-            //Logger = logger;
+            Logger = logger;
         }
 
         ~R2BotVar1()
@@ -140,12 +140,13 @@ namespace R2Bot
             
         }
 
-        public void Start(BotConfiguration config)
+        public void Start(BotConfiguration config, ImageAnalyzerConfig clientConfig)
         {
-            Debug("Bot started");
+            Log("Bot started");
             ExitFlag = false;
             CurrentState = State.None;
             StartTime = DateTime.Now;
+            ImageAnalyzer = new ImageAnalyzer(clientConfig);
             Config = new BotInternalConfiguration(config);
             MainThread = new Thread(Run);
             MainThread.Start();
@@ -173,6 +174,7 @@ namespace R2Bot
 
                     case State.Search:
                         {
+                            Log("Searching...");
                             Debug("State: Search");
                             if (Search())
                             {
@@ -198,6 +200,7 @@ namespace R2Bot
                     case State.Kill:
                         {
                             Debug("State: Kill");
+                            Log("Killing...");
                             var result = KillMonster();
                             if(ExitFlag)
                             {
@@ -218,6 +221,7 @@ namespace R2Bot
                     case State.Take:
                         {
                             Debug("State: Take");
+                            Log("Taking...");
                             Take();
                             CurrentState = State.Skills;
                             break;
@@ -229,7 +233,8 @@ namespace R2Bot
 
                         if(DateTime.Now - StartTime <  TimeSpan.FromSeconds(20))
                         {
-                            Logger?.Invoke($"Something went wrong; Health: {Result?.Health};");
+                            
+                            Log($"TP because health is {Result?.Health}");
                         }
                         else
                         {
@@ -241,7 +246,7 @@ namespace R2Bot
                                 Input.SendKey(Config.Tp.Key);
                                 Thread.Sleep(250);
                             }
-                            Logger?.Invoke($"The Bot TP. Started: {StartTime.ToString()}; Worked: {(DateTime.Now - StartTime).ToString()}");
+                            Log($"The Bot is TP. Started: {StartTime.ToString()}; Worked: {(DateTime.Now - StartTime).ToString()}");
                         }
                         Exit();
                         CurrentState = State.Exit;
@@ -251,6 +256,7 @@ namespace R2Bot
                     case State.Skills:
                     {
                         Debug("State: Skills");
+                        Log("Using skills...");
                         ProcessBuffs();
                         if (Config.MoveAfterEachKill)
                         {
@@ -619,7 +625,12 @@ namespace R2Bot
         }
 
 
-        [Conditional("DEBUG_NO")]
+        private void Log(string message)
+        {
+            Logger?.Invoke(message);
+
+        }
+
         public void Debug(string message, params object[] args)
         {
             Console.WriteLine(string.Format(message, args));

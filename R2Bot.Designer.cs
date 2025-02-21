@@ -36,6 +36,12 @@
             label2 = new Label();
             LogBox = new TextBox();
             comboBox1 = new ComboBox();
+            comboBox2 = new ComboBox();
+            label3 = new Label();
+            label4 = new Label();
+            label5 = new Label();
+            label6 = new Label();
+            label7 = new Label();
             SuspendLayout();
             // 
             // trayIcon
@@ -76,9 +82,10 @@
             // LogBox
             // 
             LogBox.Enabled = false;
-            LogBox.Location = new Point(14, 118);
+            LogBox.Location = new Point(14, 178);
+            LogBox.Multiline = true;
             LogBox.Name = "LogBox";
-            LogBox.Size = new Size(575, 27);
+            LogBox.Size = new Size(575, 136);
             LogBox.TabIndex = 4;
             // 
             // comboBox1
@@ -89,11 +96,75 @@
             comboBox1.Size = new Size(478, 28);
             comboBox1.TabIndex = 5;
             // 
+            // comboBox2
+            // 
+            comboBox2.FormattingEnabled = true;
+            comboBox2.Location = new Point(173, 124);
+            comboBox2.Name = "comboBox2";
+            comboBox2.Size = new Size(415, 28);
+            comboBox2.TabIndex = 7;
+            comboBox2.SelectedIndexChanged += comboBox2_SelectedIndexChanged;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Location = new Point(13, 132);
+            label3.Name = "label3";
+            label3.Size = new Size(0, 20);
+            label3.TabIndex = 6;
+            label3.Click += label3_Click;
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Location = new Point(19, 127);
+            label4.Name = "label4";
+            label4.Size = new Size(130, 20);
+            label4.TabIndex = 8;
+            label4.Text = "Client Config Path:";
+            // 
+            // label5
+            // 
+            label5.AutoSize = true;
+            label5.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point, 204);
+            label5.Location = new Point(12, 317);
+            label5.Name = "label5";
+            label5.Size = new Size(145, 20);
+            label5.TabIndex = 9;
+            label5.Text = "Alt+F9 => Test Input";
+            // 
+            // label6
+            // 
+            label6.AutoSize = true;
+            label6.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point, 204);
+            label6.Location = new Point(220, 317);
+            label6.Name = "label6";
+            label6.Size = new Size(157, 20);
+            label6.TabIndex = 10;
+            label6.Text = "Alt+F10 => Test Client";
+            // 
+            // label7
+            // 
+            label7.AutoSize = true;
+            label7.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point, 204);
+            label7.Location = new Point(423, 317);
+            label7.Name = "label7";
+            label7.Size = new Size(166, 20);
+            label7.TabIndex = 11;
+            label7.Text = "Alt+F11 => Save Image";
+            label7.Click += label7_Click;
+            // 
             // R2Bot
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(601, 166);
+            ClientSize = new Size(601, 346);
+            Controls.Add(label7);
+            Controls.Add(label6);
+            Controls.Add(label5);
+            Controls.Add(label4);
+            Controls.Add(comboBox2);
+            Controls.Add(label3);
             Controls.Add(comboBox1);
             Controls.Add(LogBox);
             Controls.Add(label2);
@@ -117,5 +188,11 @@
         private Label label2;
         private TextBox LogBox;
         private ComboBox comboBox1;
+        private ComboBox comboBox2;
+        private Label label3;
+        private Label label4;
+        private Label label5;
+        private Label label6;
+        private Label label7;
     }
 }

@@ -22,6 +22,8 @@ namespace R2Bot
         private Input Input { get; set; }
         private string DefaultConfigPath { get; set; } = "default.config.json";
         private string ConfigPath { get; set; } = "bot.config.json";
+        private string ClientConfigPath { get; set; } = "bot.client.json";
+        private string DefaultClientConfigPath { get; set; } = "default.client.json";
         static AutoResetEvent LoggerStringEvent = new AutoResetEvent(false);
 
         private R2BotVar1 R2BotVar1 { get; set; }
@@ -62,6 +64,7 @@ namespace R2Bot
                     }
                 }
             }
+
             var files = Directory.GetFiles(".\\", "*.config.json", SearchOption.TopDirectoryOnly);
             if (files.Length != 0)
             {
@@ -70,6 +73,40 @@ namespace R2Bot
                     comboBox1.Items.Add(file);
                 }
                 comboBox1.SelectedIndex = 0;
+            }
+
+            if (!File.Exists(ClientConfigPath))
+            {
+                ImageAnalyzerConfig config = new ImageAnalyzerConfig();
+                if (!File.Exists(DefaultClientConfigPath))
+                {
+                    var json = JsonConvert.SerializeObject(config, Formatting.Indented, JsonSettings);
+                    File.WriteAllText(DefaultClientConfigPath, json);
+                    File.WriteAllText(ClientConfigPath, json);
+                }
+                else
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(DefaultClientConfigPath);
+                        config = JsonConvert.DeserializeObject<ImageAnalyzerConfig>(json, JsonSettings);
+                        File.WriteAllText(ClientConfigPath, json);
+                    }
+                    catch (Exception exception)
+                    {
+                        Logger(exception.Message);
+                    }
+                }
+            }
+
+            files = Directory.GetFiles(".\\", "*.client.json", SearchOption.TopDirectoryOnly);
+            if (files.Length != 0)
+            {
+                foreach (var file in files)
+                {
+                    comboBox2.Items.Add(file);
+                }
+                comboBox2.SelectedIndex = 0;
             }
 
             Logger("Choose config; Go to the Game; Activate bot; Enjoy!");
@@ -113,7 +150,14 @@ namespace R2Bot
 
         private void Logger(string message)
         {
-            LogBox.Text = message;
+            if (LogBox.InvokeRequired)
+            {
+                LogBox.Invoke(() => { LogBox.Text = message; });
+            }
+            else
+            {
+                LogBox.Text = message;
+            }
         }
 
         private void InitializeKeyboardHooks()
@@ -139,12 +183,17 @@ namespace R2Bot
 
                 if (e.Key == Keys.F11)
                 {
-                    Testing();
+                    SaveImage();
                 }
 
                 if (e.Key == Keys.F10)
                 {
-                    SaveImage();
+                    TestingClient();
+                }
+
+                if (e.Key == Keys.F9)
+                {
+                    TestingInput();
                 }
             }
         }
@@ -172,6 +221,27 @@ namespace R2Bot
             }
         }
 
+        private ImageAnalyzerConfig ReadImageAnalyzerConfig()
+        {
+            ImageAnalyzerConfig config = null;
+
+            var path = (string)comboBox2.Items[comboBox2.SelectedIndex];
+
+            try
+            {
+                var json = File.ReadAllText(path);
+                config = JsonConvert.DeserializeObject<ImageAnalyzerConfig>(json, JsonSettings);
+            }
+            catch (Exception exception)
+            {
+                Logger("The client config has an error.");
+                Console.WriteLine($"Something went wrong {exception.Message}");
+                return null;
+            }
+
+            return config;
+        }
+
         private BotConfiguration ReadBotConfig()
         {
             BotConfiguration config = null;
@@ -184,12 +254,14 @@ namespace R2Bot
             }
             catch (Exception exception)
             {
+                Logger("The bot config has an error.");
                 Console.WriteLine($"Something went wrong {exception.Message}");
                 return null;
             }
 
             return config;
         }
+
 
         private BotConfiguration DefaultBotConfig()
         {
@@ -294,11 +366,19 @@ namespace R2Bot
             {
                 Logger("The user started execution.");
                 var config = ReadBotConfig();
+                var clientConfig = ReadImageAnalyzerConfig();
                 if (config == null)
                 {
-                    Logger("The config is bad. Will be used the default one");
+                    Logger("The config is bad. Choose another one.");
+                    return;
                 }
-                R2BotVar1.Start(config);
+                if (clientConfig == null)
+                {
+                    Logger("The client config is bad. Choose another one.");
+                    return;
+                }
+
+                R2BotVar1.Start(config, clientConfig);
             }
             else
             {
@@ -314,6 +394,7 @@ namespace R2Bot
                 var info = ImageAnalyzer.CaptureScreen();
                 var filename = DateTime.Now.ToString("yy-MM-dd-hh-mm");
                 ImageAnalyzer.SaveImage(info.Item1, info.Item2, filename);
+                Logger($"Image saved as {filename}");
                 Console.WriteLine($"Saved capture screen image to {filename}");
             }
             catch (Exception exception)
@@ -322,22 +403,45 @@ namespace R2Bot
             }
         }
 
-        private void Testing()
+        private void TestingInput()
         {
-            Logger("Testing...");
+            Task.Run(DoTestingInputTask);
+        }
+
+        private async Task DoTestingInputTask()
+        {
+            Logger("Testing input. Mouse should move in the screen center...");
             Input.MoveMouseTo(1920 / 2, 1080 / 2);
-            //Console.WriteLine($"Testing...");
-            //ImageAnalyzer imgAnalyzer = new ImageAnalyzer();
-            //var stopwatch = Stopwatch.StartNew();
-            //var info = ImageAnalyzer.CaptureScreen();
-            //stopwatch.Stop();
-            //Console.WriteLine($"stopwatch {stopwatch.ElapsedMilliseconds}; {stopwatch.ElapsedTicks}"); 
+            Logger("The mouse pointer should be in the screen center.");
 
-            ////var info = ImageAnalyzer.LoadImage(ImageAnalyzer.DefaultPath + "25-01-05-10-47_x=1013_y=543.png"); // no_attack
-            ////info.Item2.X = 1013;
-            ////info.Item2.Y = 543;
+            for (var i = 1920 / 2 - 200; i <= 1920 / 2 + 200; i += 50)
+            {
+                for (var j = 1080 / 2 - 200; j <= 1080 / 2 + 200; j += 50)
+                {
+                    await Task.Delay(50);
+                    Input.MoveMouseTo(i, j);
+                }
+            }
+            Logger("The input test is over.");
+        }
 
+        private void TestingClient()
+        {
+            Logger("Testing client...");
+            Input.MoveMouseTo(1920 / 2, 1080 / 2);
+
+            var config = ReadImageAnalyzerConfig();
+            if (config == null)
+            {
+                Logger("Cannot read config. Check it.");
+                return;
+            }
+
+            ImageAnalyzer imgAnalyzer = new ImageAnalyzer(config);
+            var info = ImageAnalyzer.CaptureScreen();
             //imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Cursor);
+            Logger(imgAnalyzer.DrawDebug(info.Item1, info.Item2, ImageProcessing.None));
+
         }
 
         private void R2Bot_FormClosed(object sender, FormClosedEventArgs e)
@@ -353,6 +457,20 @@ namespace R2Bot
             {
 
             }
+        }
+
+        private void label3_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void comboBox2_SelectedIndexChanged(object sender, EventArgs e)
+        {
+        }
+
+        private void label7_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -47,6 +47,23 @@ namespace R2Bot
         NoAttack
     }
 
+    public class ImageAnalyzerConfig
+    {
+        public Rectangle HealthRectangle = new Rectangle(598, 1032, 276, 2);
+        public Rectangle ManaRectangle = new Rectangle(595, 1058, 276, 2);
+
+        public Rectangle AttackWindowRectangle = new Rectangle(856, 929, 208, 43);
+        public Rectangle AttackWindowTopEdgeRectangle = new Rectangle(0, 0, 208, 2);
+        public Rectangle AttackWindowBottomEdgeRectangle = new Rectangle(0, 41, 208, 2);
+        public Rectangle AttackObjectNameRectangle = new(858, 940, 206, 20);
+        public double AttackWindowColor = 140;
+
+        public Rectangle CursorRect = new Rectangle(7, 7, 2, 2);
+        public Bgra NormalColorBgra = new Bgra(12, 85, 136, 255);
+        public Bgra AttackColorBgra = new Bgra(168, 200, 216, 255);
+        public Bgra NoAttackColorBgra = new Bgra(3, 23, 218, 255);
+        public Bgra TakeColorBgra = new Bgra(84, 122, 188, 255);
+    }
 
     internal class ImageAnalyzer
     {
@@ -79,38 +96,36 @@ namespace R2Bot
 
         const Int32 CURSOR_SHOWING = 0x00000001;
 
+        private double Debug_AttackWindowTopColor = 0;
+        private double Debug_AttackWindowBottomColor = 0;
         private Tesseract Tesseract { get; }
         private const string TesseractDefaultFolder = "./tessdata";
         private Rectangle AttackWindowRectangle { get; } = new Rectangle(856, 929, 208, 43);
         private Rectangle AttackWindowTopEdgeRectangle { get; } = new Rectangle(0, 0, 208, 2);
-        private Rectangle AttackWindowBottomEdgeRectangle { get; } = new Rectangle(0, 41, 208, 43);
+        private Rectangle AttackWindowBottomEdgeRectangle { get; } = new Rectangle(0, 41, 208, 2);
         private Rectangle HealthRectangle { get; set; } = new Rectangle(598, 1032, 276, 2);
         private Rectangle ManaRectangle { get; set; } = new Rectangle(595, 1058, 276, 2);
         private Gray Threshold128Gray { get; } = new Gray(128);
         private Gray Threshold255Gray { get; } = new Gray(255);
-        private const double AttackWindowColor = 140;
+        private double AttackWindowColor = 140;
         private const double Epsilon = 2;
         private Rectangle AttackObjectNameRectangle { get; } = new(858, 940, 206, 20);
-        private static Rectangle CursorRect { get; } = new Rectangle(7, 7, 2, 2);
+        private static Rectangle CursorRect { get; set;  } = new Rectangle(7, 7, 2, 2);
 
-        private Color NormalColor { get; } = Color.FromArgb(255, 136, 85, 12);
         private Bgra NormalColorBgra { get; } = new Bgra(12, 85, 136, 255);
         private Image<Bgra, byte> NormalImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
 
-        private Color AttackColor { get; } = Color.FromArgb(255, 216, 200, 168);
         private Bgra AttackColorBgra { get; } = new Bgra(168, 200, 216, 255);
         private Image<Bgra, byte> AttackImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
 
-        private Color NoAttackColor { get; } = Color.FromArgb(255, 218, 23, 3);
         private Bgra NoAttackColorBgra { get; } = new Bgra(3, 23, 218, 255);
         private Image<Bgra, byte> NoAttackImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
 
-        private Color TakeColor { get; } = Color.FromArgb(255, 188, 122, 84);
         private Bgra TakeColorBgra { get; } = new Bgra(84, 122, 188, 255);
         private Image<Bgra, byte> TakeImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
 
 
-        public ImageAnalyzer()
+        public ImageAnalyzer(ImageAnalyzerConfig config)
         {
             if (!Directory.Exists(TesseractDefaultFolder))
             {
@@ -128,6 +143,29 @@ namespace R2Bot
             AttackImageBgra.SetValue(AttackColorBgra);
             NoAttackImageBgra.SetValue(NoAttackColorBgra);
             TakeImageBgra.SetValue(TakeColorBgra);
+
+            if (config != null)
+            {
+                HealthRectangle = config.HealthRectangle;
+                ManaRectangle = config.ManaRectangle;
+
+                AttackWindowRectangle = config.AttackWindowRectangle;
+                AttackWindowTopEdgeRectangle = config.AttackWindowTopEdgeRectangle;
+                AttackWindowBottomEdgeRectangle = config.AttackWindowBottomEdgeRectangle;
+                AttackObjectNameRectangle = config.AttackObjectNameRectangle;
+                AttackWindowColor = config.AttackWindowColor;
+
+                CursorRect = config.CursorRect;
+                NormalColorBgra = config.NormalColorBgra;
+                AttackColorBgra = config.AttackColorBgra;
+                NoAttackColorBgra = config.NoAttackColorBgra;
+                TakeColorBgra = config.TakeColorBgra;
+
+                NormalImageBgra.SetValue(NormalColorBgra);
+                AttackImageBgra.SetValue(AttackColorBgra);
+                NoAttackImageBgra.SetValue(NoAttackColorBgra);
+                TakeImageBgra.SetValue(TakeColorBgra);
+            }
         }
 
         ~ImageAnalyzer()
@@ -260,15 +298,17 @@ namespace R2Bot
                 CvInvoke.Imshow("attack window top edge", topEdge);
     #endif
                 var topAverage = topEdge.GetAverage();
+                Debug_AttackWindowTopColor = topAverage.Intensity;
                 Debug($"attack window top average = {topAverage}");
                 if (IsEqual(topAverage.Intensity, AttackWindowColor, Epsilon))
                 {
-                    var bottomEdge = attack.GetSubRect(AttackWindowTopEdgeRectangle);
+                    var bottomEdge = attack.GetSubRect(AttackWindowBottomEdgeRectangle);
     #if IMGUI_DEBUG_WINDOW
                     CvInvoke.NamedWindow("attack window bottom edge");
                     CvInvoke.Imshow("attack window bottom edge", bottomEdge);
     #endif
                     var bottomAverage = bottomEdge.GetAverage();
+                    Debug_AttackWindowBottomColor = bottomAverage.Intensity;
                     Debug($"attack window bottom average = {bottomAverage.Intensity}");
                     if (IsEqual(bottomAverage.Intensity, AttackWindowColor, Epsilon))
                     {
@@ -438,6 +478,48 @@ namespace R2Bot
             }
 
             return (result, pointer);
+        }
+        public string DrawDebug(Bitmap bitmap, Point pointer, ImageProcessing task)
+        {
+            using (var bgra = bitmap.ToImage<Bgra, byte>())
+            {
+                var thinkness = 1;
+              
+                CvInvoke.Rectangle(bgra, HealthRectangle, new MCvScalar(255, 0, 255, 128), thinkness);
+                CvInvoke.Rectangle(bgra, ManaRectangle, new MCvScalar(255, 255, 0, 128), thinkness);
+                CvInvoke.Rectangle(bgra, AttackWindowRectangle, new MCvScalar(0, 255, 255, 128), thinkness);
+
+                var topBorder = new Rectangle(
+                    AttackWindowRectangle.X + AttackWindowTopEdgeRectangle.X,
+                    AttackWindowRectangle.Y + AttackWindowTopEdgeRectangle.Y,
+                    AttackWindowTopEdgeRectangle.Width, AttackWindowTopEdgeRectangle.Height);
+
+                CvInvoke.Rectangle(bgra, topBorder, new MCvScalar(0, 0, 255, 128), thinkness);
+
+                var bottomBorder = new Rectangle(
+                    AttackWindowRectangle.X + AttackWindowBottomEdgeRectangle.X,
+                    AttackWindowRectangle.Y + AttackWindowBottomEdgeRectangle.Y,
+                    AttackWindowBottomEdgeRectangle.Width, AttackWindowBottomEdgeRectangle.Height);
+
+                CvInvoke.Rectangle(bgra, bottomBorder, new MCvScalar(0, 0, 255, 128), thinkness);
+
+                var cursorRect = new Rectangle(pointer.X + CursorRect.X, pointer.Y + CursorRect.Y,
+                    CursorRect.Width, CursorRect.Height);
+
+                CvInvoke.Rectangle(bgra, cursorRect, new MCvScalar(0, 255, 0), thinkness);
+
+                var result = ProcessImage(bitmap, pointer, ImageProcessing.Cursor | ImageProcessing.AttackWindow | ImageProcessing.Health | ImageProcessing.Mana);
+                if(result.IsImageProcessed)
+                {
+                    CvInvoke.PutText(bgra, result.Cursor.ToString(), new Point(100, 100),
+                        FontFace.HersheySimplex, 2, new MCvScalar(0, 255, 0), 8);
+                }
+
+                CvInvoke.NamedWindow("bgra");
+                CvInvoke.Imshow("bgra", bgra);
+                bgra.Save("test_client.png");
+                return $"Cursor: {result.Cursor.ToString()}; IsAttackWindowOpen: {result.IsAttackWindowOpen}; AttackWindowTopColor: {Debug_AttackWindowTopColor}; AttackWindowBottomColor: {Debug_AttackWindowBottomColor}; Health: {result.Health}; Mana: {result.Mana};";
+            }
         }
 
         public bool IsEqual(double one, double two, double epsilon)
