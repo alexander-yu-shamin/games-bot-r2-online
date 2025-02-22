@@ -59,10 +59,15 @@ namespace R2Bot
         public double AttackWindowColor = 140;
 
         public Rectangle CursorRect = new Rectangle(7, 7, 2, 2);
-        public Bgra NormalColorBgra = new Bgra(12, 85, 136, 255);
-        public Bgra AttackColorBgra = new Bgra(168, 200, 216, 255);
-        public Bgra NoAttackColorBgra = new Bgra(3, 23, 218, 255);
-        public Bgra TakeColorBgra = new Bgra(84, 122, 188, 255);
+        public Image<Bgra, byte> NormalImageBgra;
+        public Image<Bgra, byte> AttackImageBgra;
+        public Image<Bgra, byte> NoAttackImageBgra;
+        public Image<Bgra, byte> TakeImageBgra;
+
+        public ImageAnalyzerConfig()
+        {
+            NormalImageBgra ??= new(CursorRect.Size);
+        }
     }
 
     internal class ImageAnalyzer
@@ -112,16 +117,9 @@ namespace R2Bot
         private Rectangle AttackObjectNameRectangle { get; } = new(858, 940, 206, 20);
         private static Rectangle CursorRect { get; set;  } = new Rectangle(7, 7, 2, 2);
 
-        private Bgra NormalColorBgra { get; } = new Bgra(12, 85, 136, 255);
         private Image<Bgra, byte> NormalImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
-
-        private Bgra AttackColorBgra { get; } = new Bgra(168, 200, 216, 255);
         private Image<Bgra, byte> AttackImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
-
-        private Bgra NoAttackColorBgra { get; } = new Bgra(3, 23, 218, 255);
         private Image<Bgra, byte> NoAttackImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
-
-        private Bgra TakeColorBgra { get; } = new Bgra(84, 122, 188, 255);
         private Image<Bgra, byte> TakeImageBgra { get; } = new Image<Bgra, byte>(CursorRect.Size);
 
 
@@ -139,10 +137,6 @@ namespace R2Bot
 
             Tesseract = new Tesseract("./tessdata/", "rus", OcrEngineMode.Default);
 
-            NormalImageBgra.SetValue(NormalColorBgra);
-            AttackImageBgra.SetValue(AttackColorBgra);
-            NoAttackImageBgra.SetValue(NoAttackColorBgra);
-            TakeImageBgra.SetValue(TakeColorBgra);
 
             if (config != null)
             {
@@ -156,15 +150,10 @@ namespace R2Bot
                 AttackWindowColor = config.AttackWindowColor;
 
                 CursorRect = config.CursorRect;
-                NormalColorBgra = config.NormalColorBgra;
-                AttackColorBgra = config.AttackColorBgra;
-                NoAttackColorBgra = config.NoAttackColorBgra;
-                TakeColorBgra = config.TakeColorBgra;
-
-                NormalImageBgra.SetValue(NormalColorBgra);
-                AttackImageBgra.SetValue(AttackColorBgra);
-                NoAttackImageBgra.SetValue(NoAttackColorBgra);
-                TakeImageBgra.SetValue(TakeColorBgra);
+                NormalImageBgra = config.NormalImageBgra ?? new Image<Bgra, byte>(CursorRect.Size);
+                AttackImageBgra = config.AttackImageBgra?? new Image<Bgra, byte>(CursorRect.Size);
+                NoAttackImageBgra = config.NoAttackImageBgra?? new Image<Bgra, byte>(CursorRect.Size);
+                TakeImageBgra = config.TakeImageBgra?? new Image<Bgra, byte>(CursorRect.Size);
             }
         }
 
@@ -479,6 +468,21 @@ namespace R2Bot
 
             return (result, pointer);
         }
+
+        public Image<Bgra, byte> GetCursorData(Bitmap bitmap, Point pointer)
+        {
+            using (var bgra = bitmap.ToImage<Bgra, byte>())
+            {
+                
+            var rect = new Rectangle(pointer.X + CursorRect.X, pointer.Y + CursorRect.Y, CursorRect.Width,
+                CursorRect.Height);
+                using (var cursorArea = bgra.GetSubRect(rect))
+                {
+                    return cursorArea.Clone();
+                }
+            }
+        }
+
         public string DrawDebug(Bitmap bitmap, Point pointer, ImageProcessing task)
         {
             using (var bgra = bitmap.ToImage<Bgra, byte>())
@@ -518,7 +522,7 @@ namespace R2Bot
                 CvInvoke.NamedWindow("bgra");
                 CvInvoke.Imshow("bgra", bgra);
                 bgra.Save("test_client.png");
-                return $"Cursor: {result.Cursor.ToString()}; IsAttackWindowOpen: {result.IsAttackWindowOpen}; AttackWindowTopColor: {Debug_AttackWindowTopColor}; AttackWindowBottomColor: {Debug_AttackWindowBottomColor}; Health: {result.Health}; Mana: {result.Mana};";
+                return $"Cursor: {result.Cursor.ToString()}; IsAttackWindowOpen: {result.IsAttackWindowOpen}; AttackWindowTopColor: {Debug_AttackWindowTopColor}; AttackWindowBottomColor: {Debug_AttackWindowBottomColor};\nHealth: {result.Health}; Mana: {result.Mana};";
             }
         }
 

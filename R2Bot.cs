@@ -109,6 +109,12 @@ namespace R2Bot
                 comboBox2.SelectedIndex = 0;
             }
 
+            foreach (var cursor in Enum.GetValues<CursorType>())
+            {
+                comboBox3.Items.Add(cursor.ToString());
+            }
+            comboBox3.SelectedIndex = 0;
+
             Logger("Choose config; Go to the Game; Activate bot; Enjoy!");
         }
 
@@ -167,6 +173,7 @@ namespace R2Bot
             KeyboardHook.RegisterHotKey(global::R2Bot.ModifierKeys.Alt, Keys.F12);
             KeyboardHook.RegisterHotKey(global::R2Bot.ModifierKeys.Alt, Keys.F11);
             KeyboardHook.RegisterHotKey(global::R2Bot.ModifierKeys.Alt, Keys.F10);
+            KeyboardHook.RegisterHotKey(global::R2Bot.ModifierKeys.Alt, Keys.F9);
         }
 
         void KeyboardHook_KeyPressed(object sender, KeyPressedEventArgs e)
@@ -193,10 +200,11 @@ namespace R2Bot
 
                 if (e.Key == Keys.F9)
                 {
-                    TestingInput();
+                    SetupClient();
                 }
             }
         }
+
 
         private void R2Bot_Load(object? sender, EventArgs e)
         {
@@ -218,6 +226,21 @@ namespace R2Bot
                 this.WindowState = FormWindowState.Normal;
                 this.Activate();
                 this.Show();
+            }
+        }
+
+        private void SaveImageAnalyzerConfig(ImageAnalyzerConfig config)
+        {
+            var path = (string)comboBox2.Items[comboBox2.SelectedIndex];
+            try
+            {
+                var json = JsonConvert.SerializeObject(config, Formatting.Indented, JsonSettings);
+                File.WriteAllText(path, json);
+            }
+            catch (Exception exception)
+            {
+                Logger($"Cannot save config {path}; {exception.Message}");
+                Console.WriteLine($"Something went wrong {exception.Message}");
             }
         }
 
@@ -428,8 +451,6 @@ namespace R2Bot
         private void TestingClient()
         {
             Logger("Testing client...");
-            Input.MoveMouseTo(1920 / 2, 1080 / 2);
-
             var config = ReadImageAnalyzerConfig();
             if (config == null)
             {
@@ -437,11 +458,67 @@ namespace R2Bot
                 return;
             }
 
-            ImageAnalyzer imgAnalyzer = new ImageAnalyzer(config);
+            var imgAnalyzer = new ImageAnalyzer(config);
             var info = ImageAnalyzer.CaptureScreen();
-            //imgAnalyzer.ProcessImage(info.Item1, info.Item2, ImageProcessing.Cursor);
             Logger(imgAnalyzer.DrawDebug(info.Item1, info.Item2, ImageProcessing.None));
+        }
 
+
+        private void SetupClient()
+        {
+            var config = ReadImageAnalyzerConfig();
+            if (config == null)
+            {
+                Logger("Cannot read config. Check it.");
+                return;
+            }
+
+            var imgAnalyzer = new ImageAnalyzer(config);
+            var info = ImageAnalyzer.CaptureScreen();
+
+            var cursorName = (string)comboBox3.Items[comboBox3.SelectedIndex];
+            CursorType cursor = (CursorType)Enum.Parse(typeof(CursorType), cursorName);
+            Logger($"Find cursor {cursor}");
+
+            var data = imgAnalyzer.GetCursorData(info.Item1, info.Item2);
+
+            switch (cursor)
+            {
+
+                case CursorType.Normal:
+                    {
+                        config.NormalImageBgra = data;
+                        break;
+                    }
+
+                case CursorType.Take:
+                    {
+                        config.TakeImageBgra = data;
+                        break;
+                    }
+
+                case CursorType.Attack:
+                    {
+                        config.AttackImageBgra = data;
+                        break;
+                    }
+
+                case CursorType.NoAttack:
+                    {
+                        config.NoAttackImageBgra = data;
+                        break;
+                    }
+
+                case CursorType.None:
+                default:
+                    {
+                        Logger("You should choose the cursor type first.");
+                        return;
+                    }
+            }
+
+            Logger("Config has been updated");
+            SaveImageAnalyzerConfig(config);
         }
 
         private void R2Bot_FormClosed(object sender, FormClosedEventArgs e)
@@ -457,15 +534,6 @@ namespace R2Bot
             {
 
             }
-        }
-
-        private void label3_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void comboBox2_SelectedIndexChanged(object sender, EventArgs e)
-        {
         }
 
         private void label7_Click(object sender, EventArgs e)
