@@ -1,4 +1,4 @@
-#define DEBUG_STOPWATCH
+﻿#define DEBUG_STOPWATCH
 using System.CodeDom.Compiler;
 using Interceptor;
 using System.Diagnostics;
@@ -12,6 +12,7 @@ using Emgu.CV.Structure;
 using Newtonsoft.Json;
 using Keys = System.Windows.Forms.Keys;
 using Newtonsoft.Json.Converters;
+using System.Collections.Concurrent;
 
 namespace R2Bot
 {
@@ -33,8 +34,14 @@ namespace R2Bot
             Converters = new[] { new StringEnumConverter() }
         };
 
+        StreamWriter Writer;
         public R2Bot()
         {
+
+            StreamWriter Writer = new StreamWriter("log.txt", true);// `true` → добавляет в конец файла
+            Writer.AutoFlush = true;
+            Console.SetOut(Writer);
+
             InitializeComponent();
             InitializeKeyboardHooks();
             InitializeDriverImitator();
@@ -154,15 +161,25 @@ namespace R2Bot
             R2BotVar1 = new R2BotVar1(input, Logger);
         }
 
+        private List<string> LogBuffer = new List<string>();
+        private const int MaxLines = 5;
+
         private void Logger(string message)
         {
+            Console.WriteLine(message);
+            LogBuffer.Add(message);
+            if(LogBuffer.Count > MaxLines)
+            {
+                LogBuffer.RemoveAt(0);
+            }
+
             if (LogBox.InvokeRequired)
             {
-                LogBox.Invoke(() => { LogBox.Text = message; });
+                LogBox.Invoke(() => { LogBox.Text = string.Join(Environment.NewLine, LogBuffer); });
             }
             else
             {
-                LogBox.Text = message;
+                LogBox.Text = string.Join(Environment.NewLine, LogBuffer);
             }
         }
 
@@ -529,6 +546,8 @@ namespace R2Bot
                 {
                     Input.Unload();
                 }
+                Writer.Flush();
+                Writer.Close();
             }
             catch
             {

@@ -1,4 +1,4 @@
-namespace R2Bot
+﻿namespace R2Bot
 {
     internal static class Program
     {
