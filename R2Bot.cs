@@ -37,7 +37,6 @@ namespace R2Bot
         StreamWriter Writer;
         public R2Bot()
         {
-
             StreamWriter Writer = new StreamWriter("log.txt", true);// `true` → добавляет в конец файла
             Writer.AutoFlush = true;
             Console.SetOut(Writer);

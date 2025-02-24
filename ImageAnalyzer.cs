@@ -182,7 +182,6 @@ namespace R2Bot
                     CvInvoke.NamedWindow("bgra");
                     CvInvoke.Imshow("bgra", bgra);
     #endif
-                    result.IsImageProcessed = true;
 
                     if (task.HasFlag(ImageProcessing.Cursor))
                     {
@@ -220,7 +219,11 @@ namespace R2Bot
             }
             catch(Exception exception)
             {
-                Debug( exception.Message);
+                Debug( exception.Message + exception.StackTrace);
+                result.IsImageProcessed = false;
+            }
+            finally{
+                result.IsImageProcessed = true;
             }
 
             return result;
