@@ -540,7 +540,6 @@ namespace R2Bot
 
             if (Routine(result))
             {
-                CurrentState = State.TP;
                 return true;
             }
 

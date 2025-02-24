@@ -535,7 +535,6 @@ namespace R2Bot
             return MathF.Abs(one - two) < epsilon;
         }
 
-        [Conditional("DEBUG_NO")]
         public void Debug(string message, params object[] args)
         {
             Console.WriteLine(string.Format(message, args));
