@@ -1,5 +1,7 @@
 # R2 Pixel Bot
 
+> I was home for the New Year's break and saw a kid playing R2 Online. He was spending an incredible amount of time just grinding mobs. To make things easier for him, I left the computer running continuously. It stayed on for almost six months, until he finally lost interest in the game.
+
 This solution is intended for research purposes only, specifically to test the use of image processing algorithms in games.
 It is not intended for use in actual gameplay.
 The author is not responsible for any use of this product that falls outside the scope of research.
